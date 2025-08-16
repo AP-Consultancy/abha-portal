@@ -35,7 +35,11 @@ export const AuthProvider = ({ children }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ identifier, password, role }),
+        body: JSON.stringify(
+          role === "student"
+            ? { identifier, password, role }
+            : { enrollmentNo: identifier, password, role }
+        ),
       });
       
       const data = await response.json();
@@ -48,10 +52,14 @@ export const AuthProvider = ({ children }) => {
         }
         
         // Normalize the user data structure
+        const baseUserData = data.student || data.teacher || data.admin || null;
+        const mappedUserData = baseUserData
+          ? { ...baseUserData, _id: baseUserData._id || baseUserData.id }
+          : null;
         const normalizedUser = {
           ...data,
-          userRole: role,
-          userData: data.student || data.teacher || data.admin || null
+          userRole: role.toLowerCase(),
+          userData: mappedUserData,
         };
         
         setUser(normalizedUser);

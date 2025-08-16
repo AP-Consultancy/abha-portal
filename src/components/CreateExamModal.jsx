@@ -24,6 +24,9 @@ const CreateExamModal = ({
     examType: "Unit Test",
     instructions: "",
   });
+  const [applyToSections, setApplyToSections] = useState(false);
+  const [availableSections, setAvailableSections] = useState([]);
+  const [selectedSectionClassIds, setSelectedSectionClassIds] = useState([]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -34,6 +37,8 @@ const CreateExamModal = ({
       const payload = {
         ...formData,
         teacher: teacherId,
+        applyToAllSections: applyToSections && selectedSectionClassIds.length === 0,
+        targetSectionClassIds: applyToSections ? selectedSectionClassIds : [],
       };
       const response = await examService.createExam(payload);
       toast.success("Exam created successfully");
@@ -44,6 +49,25 @@ const CreateExamModal = ({
       toast.error("Failed to create exam");
     }
   };
+
+  useEffect(() => {
+    const fetchSections = async () => {
+      try {
+        setAvailableSections([]);
+        setSelectedSectionClassIds([]);
+        if (!formData.class) return;
+        const selected = classes.find((c) => c._id === formData.class);
+        if (!selected) return;
+        const siblings = classes.filter(
+          (c) => c.name === selected.name && c.academicYear === selected.academicYear
+        );
+        setAvailableSections(siblings);
+      } catch (e) {
+        console.error("Failed to load sections for class", e);
+      }
+    };
+    fetchSections();
+  }, [formData.class, classes]);
 
   return (
     <Dialog
@@ -87,10 +111,44 @@ const CreateExamModal = ({
               <option value="">Select Class</option>
               {classes.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name}
+                  {c.name} - {c.section}
                 </option>
               ))}
             </select>
+            <div className="flex items-center gap-2">
+              <input
+                id="applySections"
+                type="checkbox"
+                checked={applyToSections}
+                onChange={(e) => setApplyToSections(e.target.checked)}
+              />
+              <label htmlFor="applySections" className="text-sm">
+                Apply to sections (optional)
+              </label>
+            </div>
+            {applyToSections && availableSections.length > 0 && (
+              <div>
+                <label className="text-sm font-medium">Select Sections</label>
+                <select
+                  multiple
+                  value={selectedSectionClassIds}
+                  onChange={(e) => {
+                    const options = Array.from(e.target.selectedOptions).map((o) => o.value);
+                    setSelectedSectionClassIds(options);
+                  }}
+                  className="input h-32"
+                >
+                  {availableSections.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}-{c.section}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  If none selected, all sections will be targeted.
+                </p>
+              </div>
+            )}
             <input
               name="examDate"
               type="date"

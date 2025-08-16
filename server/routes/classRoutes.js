@@ -63,4 +63,7 @@ router.post("/remove-student", authenticateToken, requireAdmin, classController.
 // Delete class (admin only)
 router.delete("/:id", authenticateToken, requireAdmin, classController.deleteClass);
 
+// Admin utility: reconcile students<->classes
+router.post("/reconcile-memberships", authenticateToken, requireAdmin, classController.reconcileClassMemberships);
+
 module.exports = router; 

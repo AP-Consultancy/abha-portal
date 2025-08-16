@@ -15,6 +15,7 @@ import {
 import { examService } from "../services/examService";
 import { subjectService } from "../services/subjectService";
 import { classService } from "../services/classService";
+import { teacherService } from "../services/teacherService";
 import CSVUpload from "../components/common/CSVUpload";
 import { API_BASE_URL } from "../utils/constants";
 
@@ -41,7 +42,7 @@ const Exams = () => {
     duration: "",
     totalMarks: "",
     room: "",
-    examType: "",
+    examType: "Unit Test",
     instructions: "",
   });
 
@@ -53,13 +54,16 @@ const Exams = () => {
   // CSV Upload state
   const [showCSVUpload, setShowCSVUpload] = useState(false);
 
+  // Bulk results modal state
+  const [showBulkResultsModal, setShowBulkResultsModal] = useState(false);
+
   // Fetch data on component mount
   useEffect(() => {
     fetchExams();
     fetchDropdownData();
   }, []);
 
-  // CSV Upload handler
+  // CSV Upload handler (exams)
   const handleCSVUpload = async (formData, file) => {
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('authToken');
@@ -86,8 +90,6 @@ const Exams = () => {
         return text ? { message: text } : {};
       });
       console.log('Upload result:', result);
-      
-      // Refresh the exams list after successful upload
       await fetchExams();
     } catch (error) {
       console.error('CSV upload error:', error);
@@ -99,9 +101,9 @@ const Exams = () => {
     try {
       setLoading(true);
       const data = await examService.getAllExams();
-      setExams(data.exams || data || []);
-    } catch (error) {
-      console.error("Error fetching exams:", error);
+      setExams(data.exams || []);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -109,27 +111,68 @@ const Exams = () => {
 
   const fetchDropdownData = async () => {
     try {
-      // Fetch subjects
-      const subjectsData = await subjectService.getAllSubjects();
-      setSubjects(subjectsData.subjects || subjectsData || []);
-
-      // Fetch classes
-      const classesData = await classService.getAllClasses();
-      setClasses(classesData.classes || classesData || []);
-
-      // TODO: Fetch teachers when teacherService is available
-      // const teachersData = await teacherService.getAllTeachers();
-      // setTeachers(teachersData.teachers || teachersData || []);
-    } catch (error) {
-      console.error("Error fetching dropdown data:", error);
+      const [subjectsRes, classesRes, teachersRes] = await Promise.all([
+        subjectService.getAllSubjects(),
+        classService.getAllClasses(),
+        teacherService.getAllTeachers(),
+      ]);
+      setSubjects(subjectsRes.subjects || subjectsRes || []);
+      setClasses(classesRes.classes || classesRes || []);
+      setTeachers(teachersRes.teachers || teachersRes || []);
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const handleCreateExam = async (examData) => {
+  const handleViewResults = async (examId) => {
     try {
-      await examService.createExam(examData);
-      fetchExams(); // Refresh the list
+      setSelectedExamId(examId);
+      setShowResults(true);
+      const res = await examService.getExamResults(examId);
+      setExamResults(res.results || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteExam = async (examId) => {
+    try {
+      await examService.deleteExam(examId);
+      fetchExams();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSubmitExam = async () => {
+    try {
+      // Basic validation
+      const required = ['title','subject','class','teacher','examDate','startTime','endTime','duration','totalMarks','examType'];
+      const missing = required.filter((k)=> !String(formData[k] ?? '').trim());
+      if (missing.length) { alert(`Please fill required fields: ${missing.join(', ')}`); return; }
+
+      const payload = {
+        title: formData.title,
+        subject: formData.subject,
+        class: formData.class,
+        teacher: formData.teacher,
+        examDate: formData.examDate,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        duration: Number(formData.duration),
+        totalMarks: Number(formData.totalMarks),
+        room: formData.room,
+        examType: formData.examType,
+        instructions: formData.instructions,
+      };
+
+      if (editingExam) {
+        await examService.updateExam(editingExam._id || editingExam.id, payload);
+      } else {
+        await examService.createExam(payload);
+      }
       setShowForm(false);
+      setEditingExam(null);
       setFormData({
         title: "",
         subject: "",
@@ -141,110 +184,53 @@ const Exams = () => {
         duration: "",
         totalMarks: "",
         room: "",
-        examType: "",
+        examType: "Unit Test",
         instructions: "",
       });
-    } catch (error) {
-      console.error("Error creating exam:", error);
+      await fetchExams();
+    } catch (e) {
+      console.error('Failed to submit exam', e);
+      alert(e.message || 'Failed to submit exam');
     }
   };
 
-  const handleUpdateExam = async (examId, examData) => {
+  const handleBulkResultsUpload = async (file) => {
     try {
-      await examService.updateExam(examId, examData);
-      fetchExams(); // Refresh the list
-      setEditingExam(null);
-    } catch (error) {
-      console.error("Error updating exam:", error);
-    }
-  };
-
-  const handleDeleteExam = async (examId) => {
-    if (window.confirm("Are you sure you want to delete this exam?")) {
-      try {
-        await examService.deleteExam(examId);
-        fetchExams(); // Refresh the list
-      } catch (error) {
-        console.error("Error deleting exam:", error);
-      }
-    }
-  };
-
-  const handleViewResults = async (examId) => {
-    try {
-      const results = await examService.getExamResults(examId);
-      setExamResults(results.results || results || []);
-      setSelectedExamId(examId);
-      setShowResults(true);
-    } catch (error) {
-      console.error("Error fetching exam results:", error);
+      if (!selectedExamId) { alert('Select an exam first'); return; }
+      const fd = new FormData();
+      fd.append('csvFile', file);
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      const res = await fetch(`${API_BASE_URL}/api/exams/${selectedExamId}/results/bulk-upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: fd
+      });
+      const data = await res.json().catch(()=>({}));
+      if (!res.ok) throw new Error(data?.message || 'Upload failed');
+      alert(`Results uploaded: ${data.saved}/${data.total}`);
+      setShowBulkResultsModal(false);
+    } catch (e) {
+      console.error(e);
+      alert(e.message || 'Upload failed');
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading exams...</div>
-      </div>
-    );
+    return <div className="p-6">Loading exams...</div>;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Exams Management</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
-        >
-          <PlusIcon className="h-5 w-5" />
-          <span>Add Exam</span>
-        </button>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search exams..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Exams</h1>
         <div className="flex gap-2">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <option value="">All Status</option>
-            <option value="upcoming">Upcoming</option>
-            <option value="ongoing">Ongoing</option>
-            <option value="completed">Completed</option>
-          </select>
-          <select
-            value={filterExamType}
-            onChange={(e) => setFilterExamType(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Types</option>
-            <option value="midterm">Midterm</option>
-            <option value="final">Final</option>
-            <option value="quiz">Quiz</option>
-          </select>
-        </div>
-      </div>
-
-      {/* CSV Upload Section */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Bulk Import Exams</h2>
+            <PlusIcon className="h-5 w-5 inline" /> Add Exam
+          </button>
           <button
             onClick={() => setShowCSVUpload(!showCSVUpload)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
@@ -252,102 +238,70 @@ const Exams = () => {
             {showCSVUpload ? 'Hide Upload' : 'Show Upload'}
           </button>
         </div>
-        
-        {showCSVUpload && (
-          <CSVUpload
-            onUpload={handleCSVUpload}
-            title="Upload Exam Data"
-            description="Upload a CSV file to import multiple exams at once"
-            entityType="exams"
-            acceptedFileTypes=".csv,.xlsx,.xls"
-            maxFileSize={10}
-            showCredentialExport={false}
-          />
-        )}
       </div>
+      
+      {showCSVUpload && (
+        <CSVUpload
+          onUpload={handleCSVUpload}
+          title="Upload Exam Data"
+          description="Upload a CSV file to import multiple exams at once"
+          entityType="exams"
+          acceptedFileTypes=".csv,.xlsx,.xls"
+          maxFileSize={10}
+          showCredentialExport={false}
+        />
+      )}
 
       {/* Exams Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {exams.map((exam) => (
-          <div key={exam._id || exam.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4">
-              <h3 className="text-lg font-semibold text-white">{exam.title}</h3>
-              <p className="text-blue-100 text-sm">{exam.subject?.name || exam.subject}</p>
-            </div>
-            
-            <div className="p-6">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <CalendarIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">{exam.examDate}</span>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <ClockIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">{exam.startTime} - {exam.endTime}</span>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <UsersIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">{exam.class?.name || exam.class}</span>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <BookOpenIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">{exam.totalMarks} marks</span>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-600">Room:</span>
-                  <span className="text-sm text-gray-900">{exam.room || 'Not specified'}</span>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-600">Type:</span>
-                  <span className="text-sm text-gray-900">{exam.examType || 'Not specified'}</span>
-                </div>
+        {exams.map((exam) => {
+          const isPast = exam.examDate && new Date(exam.examDate) < new Date();
+          return (
+            <div key={exam._id || exam.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4">
+                <h3 className="text-lg font-semibold text-white">{exam.title}</h3>
+                <p className="text-blue-100 text-sm">{exam.subject?.name || exam.subject}</p>
               </div>
               
-               <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-200">
-                <button 
-                  onClick={() => handleViewResults(exam._id || exam.id)}
-                  className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors"
-                >
-                  <EyeIcon className="h-5 w-5" />
-                </button>
-                <button 
-                  onClick={() => {
-                    setEditingExam(exam);
-                    setShowForm(false);
-                    setFormData({
-                      title: exam.title || '',
-                      subject: exam.subject?._id || exam.subject || '',
-                      class: exam.class?._id || exam.class || '',
-                      teacher: exam.teacher?._id || exam.teacher || '',
-                      examDate: exam.examDate ? String(exam.examDate).split('T')[0] : '',
-                      startTime: exam.startTime || '',
-                      endTime: exam.endTime || '',
-                      duration: exam.duration || '',
-                      totalMarks: exam.totalMarks || '',
-                      room: exam.room || '',
-                      examType: exam.examType || '',
-                      instructions: exam.instructions || '',
-                    });
-                  }}
-                  className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-50 transition-colors"
-                >
-                  <PencilIcon className="h-5 w-5" />
-                </button>
-                <button 
-                  onClick={() => handleDeleteExam(exam._id || exam.id)}
-                  className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
+              <div className="p-6">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <CalendarIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">{exam.examDate}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <ClockIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">{exam.startTime} - {exam.endTime}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <UsersIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">{exam.class?.name || exam.class}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <BookOpenIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">{exam.totalMarks} marks</span>
+                  </div>
+                </div>
+                <div className="p-4 border-t border-gray-100 flex justify-end gap-2">
+                  <button
+                    className="px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50"
+                    onClick={() => handleViewResults(exam._id || exam.id)}
+                  >
+                    View Results
+                  </button>
+                  {isPast && (
+                    <button
+                      className="px-3 py-1.5 text-sm rounded-md bg-purple-600 text-white hover:bg-purple-700"
+                      onClick={()=>{ setSelectedExamId(exam._id || exam.id); setShowBulkResultsModal(true); }}
+                    >
+                      Upload Results (CSV)
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Add/Edit Exam Modal */}
@@ -394,6 +348,21 @@ const Exams = () => {
                       {classes.map((cls) => (
                         <option key={cls._id || cls.id} value={cls._id || cls.id}>
                           {cls.name} - {cls.section}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
+                    <select 
+                      value={formData.teacher}
+                      onChange={(e) => setFormData({...formData, teacher: e.target.value})}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Teacher</option>
+                      {teachers.map((t) => (
+                        <option key={t._id || t.id} value={t._id || t.id}>
+                          {t.name}
                         </option>
                       ))}
                     </select>
@@ -463,10 +432,11 @@ const Exams = () => {
                       onChange={(e) => setFormData({...formData, examType: e.target.value})}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">Select Type</option>
-                      <option value="midterm">Midterm</option>
-                      <option value="final">Final</option>
-                      <option value="quiz">Quiz</option>
+                      <option>Unit Test</option>
+                      <option>Mid Term</option>
+                      <option>Final Term</option>
+                      <option>Practical</option>
+                      <option>Assignment</option>
                     </select>
                   </div>
                   <div>
@@ -475,21 +445,20 @@ const Exams = () => {
                       value={formData.instructions}
                       onChange={(e) => setFormData({...formData, instructions: e.target.value})}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                      rows={3}
                     />
                   </div>
                 </div>
               </div>
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
-                  onClick={() => editingExam ? handleUpdateExam(editingExam._id, formData) : handleCreateExam(formData)}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={handleSubmitExam}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   {editingExam ? 'Save Changes' : 'Add Exam'}
                 </button>
                 <button
                   onClick={() => { setShowForm(false); setEditingExam(null); }}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Cancel
                 </button>
@@ -499,30 +468,21 @@ const Exams = () => {
         </div>
       )}
 
-      {/* Exam Results Modal */}
+      {/* Results Modal */}
       {showResults && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowResults(false)}></div>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Exam Results</h3>
-                  <button
-                    onClick={() => setShowResults(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <XMarkIcon className="h-6 w-6" />
-                  </button>
-                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Exam Results</h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marks Obtained</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marks</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
                       </tr>
                     </thead>
@@ -530,7 +490,9 @@ const Exams = () => {
                       {examResults.map((result) => (
                         <tr key={result._id || result.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {result.student?.name || result.studentName}
+                            {result.student
+                              ? `${result.student.firstName || ''} ${result.student.lastName || ''}`.trim() || result.student.enrollmentNo || 'Unknown'
+                              : (result.studentName || 'Unknown')}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {result.student?.rollNo || result.rollNo}
@@ -541,14 +503,48 @@ const Exams = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {((result.marksObtained / result.totalMarks) * 100).toFixed(1)}%
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {result.grade || 'N/A'}
-                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={() => setShowResults(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Upload Results Modal */}
+      {showBulkResultsModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={()=> setShowBulkResultsModal(false)}></div>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Results (CSV)</h3>
+                <p className="text-sm text-gray-600 mb-3">Accepted headers: studentId, marksObtained, isAbsent</p>
+                <input type="file" accept=".csv" onChange={async (e)=>{
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  await handleBulkResultsUpload(file);
+                  e.target.value='';
+                }} className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={()=> setShowBulkResultsModal(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

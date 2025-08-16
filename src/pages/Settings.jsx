@@ -2,6 +2,108 @@ import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { CogIcon, UserCircleIcon, PaintBrushIcon, BellIcon, ShieldCheckIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
+import { adminService } from '../services/adminService';
+
+const OwnPasswordForm = () => {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!currentPassword || !newPassword) { alert('Enter current and new password'); return; }
+    if (newPassword !== confirmPassword) { alert('Passwords do not match'); return; }
+    try {
+      setBusy(true);
+      await adminService.changeOwnPassword(currentPassword, newPassword);
+      alert('Password updated');
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+    } catch (e) {
+      alert(e.message || 'Failed to update password');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+        <input type="password" value={currentPassword} onChange={(e)=>setCurrentPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+        <input type="password" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+        <input type="password" value={confirmPassword} onChange={(e)=>setConfirmPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+      </div>
+      <button onClick={handleSubmit} disabled={busy} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">{busy ? 'Updating...' : 'Update Password'}</button>
+    </div>
+  );
+};
+
+const AdminResetUserPasswordForm = () => {
+  const [userType, setUserType] = useState('student');
+  const [userId, setUserId] = useState('');
+  const [enrollmentNo, setEnrollmentNo] = useState('');
+  const [scholarNumber, setScholarNumber] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!newPassword) { alert('Enter new password'); return; }
+    const payload = { userType, newPassword };
+    if (userId) payload.userId = userId;
+    if (enrollmentNo) payload.enrollmentNo = enrollmentNo;
+    if (scholarNumber) payload.scholarNumber = scholarNumber;
+    try {
+      setBusy(true);
+      await adminService.changeUserPassword(payload);
+      alert('Password reset successfully');
+      setUserId(''); setEnrollmentNo(''); setScholarNumber(''); setNewPassword('');
+    } catch (e) {
+      alert(e.message || 'Failed to reset password');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">User Type</label>
+          <select value={userType} onChange={(e)=>setUserType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">User ID (optional)</label>
+          <input value={userId} onChange={(e)=>setUserId(e.target.value)} placeholder="Mongo _id" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Enrollment No (teacher/admin) (optional)</label>
+          <input value={enrollmentNo} onChange={(e)=>setEnrollmentNo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+        </div>
+        {userType === 'student' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Scholar Number (student) (optional)</label>
+            <input value={scholarNumber} onChange={(e)=>setScholarNumber(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+        <input type="password" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+      </div>
+      <button onClick={handleSubmit} disabled={busy} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">{busy ? 'Resetting...' : 'Reset Password'}</button>
+    </div>
+  );
+};
 
 const Settings = () => {
   const { theme, primaryColor, direction, toggleTheme, changePrimaryColor, toggleDirection } = useTheme();
@@ -117,7 +219,7 @@ const Settings = () => {
                     <div className="flex items-center space-x-4">
                       <div className="h-20 w-20 rounded-full bg-gray-300 flex items-center justify-center">
                         <span className="text-xl font-medium text-gray-700">
-                          {user?.name.split(' ').map(n => n[0]).join('')}
+                          {(user?.name || '').split(' ').filter(Boolean).map(n => n[0]).join('') || 'U'}
                         </span>
                       </div>
                       <div>
@@ -286,44 +388,11 @@ const Settings = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Security Settings</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                      <input
-                        type="password"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                      <input
-                        type="password"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                      <input
-                        type="password"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                      Update Password
-                    </button>
-                  </div>
+                  <OwnPasswordForm />
                   
                   <div className="mt-8 pt-6 border-t border-gray-200">
-                    <h4 className="text-md font-medium text-gray-900 mb-3">Two-Factor Authentication</h4>
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <div className="font-medium text-gray-900">Enable 2FA</div>
-                        <div className="text-sm text-gray-600">Add an extra layer of security to your account</div>
-                      </div>
-                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        Enable
-                      </button>
-                    </div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">Reset Another User's Password</h4>
+                    <AdminResetUserPasswordForm />
                   </div>
                 </div>
               </div>

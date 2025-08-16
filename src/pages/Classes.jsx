@@ -459,19 +459,27 @@ const Classes = () => {
                     <div key={idx} className="grid grid-cols-12 gap-3 items-center">
                       <div className="col-span-5">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                        {(() => {
-                          const options = (row.teacherId && teacherSubjectsCache[row.teacherId]?.length)
-                            ? teacherSubjectsCache[row.teacherId]
-                            : allSubjects;
-                          return (
-                            <select value={row.subjectId} onChange={(e)=>{
-                              const s = [...subjectEdit.subjects]; s[idx].subjectId = e.target.value; setSubjectEdit({ ...subjectEdit, subjects: s });
-                            }} className="w-full border border-gray-300 rounded-lg px-3 py-2">
-                              <option value="">Select Subject</option>
-                              {options.map(s=> (<option key={s._id} value={s._id}>{s.name}</option>))}
-                            </select>
-                          );
-                        })()}
+                        <select value={row.subjectId} onChange={async (e)=>{
+                          const subjectId = e.target.value;
+                          const s = [...subjectEdit.subjects]; s[idx].subjectId = subjectId; setSubjectEdit({ ...subjectEdit, subjects: s });
+                          if (subjectId) {
+                            try {
+                              const data = await subjectService.getTeachersBySubject(subjectId);
+                              const allowedTeachers = data.teachers || [];
+                              // If current selected teacher not in allowed list, reset it
+                              const allowedIds = new Set(allowedTeachers.map(t => t._id));
+                              if (s[idx].teacherId && !allowedIds.has(s[idx].teacherId)) {
+                                const s2 = [...s]; s2[idx].teacherId = ''; setSubjectEdit(prev => ({ ...prev, subjects: s2 }));
+                              }
+                              // Cache per-row allowed teachers
+                              const key = `subject:${subjectId}`;
+                              setTeacherSubjectsCache(prev => ({ ...prev, [key]: allowedTeachers }));
+                            } catch (err) { console.error('Failed to load teachers for subject', err); }
+                          }
+                        }} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                          <option value="">Select Subject</option>
+                          {allSubjects.map(s=> (<option key={s._id} value={s._id}>{s.name}</option>))}
+                        </select>
                       </div>
                       <div className="col-span-5">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
@@ -481,24 +489,14 @@ const Classes = () => {
                           s[idx].teacherId = teacherId;
                           setSubjectEdit({ ...subjectEdit, subjects: s });
 
-                          if (teacherId && !teacherSubjectsCache[teacherId]) {
-                            try {
-                              const data = await subjectService.getSubjectsByTeacher(teacherId);
-                              const subjects = data.subjects || [];
-                              setTeacherSubjectsCache(prev => ({ ...prev, [teacherId]: subjects }));
-                              const allowedIds = new Set(subjects.map(x => x._id));
-                              if (s[idx].subjectId && !allowedIds.has(s[idx].subjectId)) {
-                                const s2 = [...s];
-                                s2[idx].subjectId = '';
-                                setSubjectEdit(prev => ({ ...prev, subjects: s2 }));
-                              }
-                            } catch (err) {
-                              console.error('Failed to load subjects for teacher', err);
-                            }
-                          }
+                          // No need to fetch teacher->subjects now; we filter teachers by subject instead
                         }} className="w-full border border-gray-300 rounded-lg px-3 py-2">
                           <option value="">Select Teacher</option>
-                          {teachers.map(t => (<option key={t._id} value={t._id}>{t.name}</option>))}
+                          {(() => {
+                            const key = row.subjectId ? `subject:${row.subjectId}` : null;
+                            const allowed = key && teacherSubjectsCache[key] ? teacherSubjectsCache[key] : teachers;
+                            return (allowed || []).map(t => (<option key={t._id} value={t._id}>{t.name}</option>));
+                          })()}
                         </select>
                       </div>
                       <div className="col-span-2">

@@ -33,7 +33,7 @@ const PaymentButton = ({
       };
 
       const orderResponse = await paymentService.createOrder(orderData);
-      const order = orderResponse.data;
+      const order = orderResponse; // apiService returns parsed JSON directly
 
       const onSuccess = async (response) => {
         try {
@@ -64,12 +64,15 @@ const PaymentButton = ({
         setProcessing(false);
       };
 
+      const studentName = `${student.firstName ?? ''} ${student.lastName ?? ''}`.trim();
       createRazorpayOrder(
         {
           ...order,
+          // Prefer gateway order.amount (paise) if present; handler doesn't rely on amount when order_id is set
+          amount: order?.amount ?? Math.round(amount * 100),
           notes: {
-            ...order.notes,
-            studentName: student.name,
+            ...(order?.notes || {}),
+            studentName,
           },
         },
         onSuccess,

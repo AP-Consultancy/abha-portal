@@ -1,10 +1,11 @@
 const Subject = require("../models/subjectModel");
 const Class = require("../models/classModel");
+const Teacher = require("../models/teacherModel");
 
 // Get all subjects
 exports.getAllSubjects = async (req, res) => {
   try {
-    const subjects = await Subject.find().sort({ grade: 1, name: 1 });
+    const subjects = await Subject.find().populate('teacher', 'name enrollmentNo department').sort({ grade: 1, name: 1 });
     res.json({ success: true, subjects });
   } catch (error) {
     console.error("Error fetching subjects:", error);
@@ -43,6 +44,39 @@ exports.getSubjectsByTeacher = async (req, res) => {
   } catch (error) {
     console.error("Error fetching subjects by teacher:", error);
     res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+  }
+};
+
+// Get teachers who teach a given subject (via default subject.teacher or any class assignments)
+exports.getTeachersBySubject = async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    const subject = await Subject.findById(subjectId).lean();
+    if (!subject) return res.status(404).json({ success: false, message: "Subject not found" });
+
+    const classes = await Class.find({ "subjects.subject": subjectId }, { subjects: 1 })
+      .populate("subjects.teacher", "name enrollmentNo email department")
+      .lean();
+
+    const teacherMap = new Map();
+    // Include subject's default teacher if defined
+    if (subject.teacher) {
+      const t = await Teacher.findById(subject.teacher).select("name enrollmentNo email department").lean();
+      if (t) teacherMap.set(String(t._id), t);
+    }
+
+    for (const cls of classes) {
+      for (const s of cls.subjects || []) {
+        if (String(s.subject) === String(subjectId) && s.teacher && s.teacher._id) {
+          teacherMap.set(String(s.teacher._id), s.teacher);
+        }
+      }
+    }
+
+    return res.json({ success: true, teachers: Array.from(teacherMap.values()) });
+  } catch (error) {
+    console.error("Error fetching teachers by subject:", error);
+    return res.status(500).json({ success: false, message: "Internal server error", error: error.message });
   }
 };
 
@@ -245,6 +279,7 @@ exports.bulkUploadSubjects = async (req, res) => {
         else if (key === 'description') out.description = value;
         else if (key === 'grade') out.grade = value;
         else if (key === 'hoursperweek' || key === 'hours') out.hoursPerWeek = Number(value);
+        else if (key === 'teacher' || key === 'teachername') out.teacherName = value;
       }
       return out;
     };
@@ -262,12 +297,20 @@ exports.bulkUploadSubjects = async (req, res) => {
         const existing = await Subject.findOne({ code: row.code });
         if (existing) throw new Error(`Subject with code ${row.code} already exists`);
 
+        let teacherId = undefined;
+        if (row.teacherName) {
+          const teacher = await Teacher.findOne({ name: { $regex: `^${row.teacherName}$`, $options: 'i' } });
+          if (!teacher) throw new Error(`Teacher not found: ${row.teacherName}`);
+          teacherId = teacher._id;
+        }
+
         const subject = new Subject({
           name: row.name,
           code: row.code,
           description: row.description,
           grade: row.grade,
           hoursPerWeek: Number(row.hoursPerWeek),
+          teacher: teacherId,
           createdBy: req.user?.enrollmentNo || 'admin',
         });
 

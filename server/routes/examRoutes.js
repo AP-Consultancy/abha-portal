@@ -15,6 +15,16 @@ router.route("/bulk-upload").post(
   examController.bulkUploadExams
 );
 
+// Bulk upload exam results (Admin only)
+router.post(
+  "/:examId/results/bulk-upload",
+  authenticateToken,
+  requireAdmin,
+  upload.single('csvFile'),
+  (req, res, next) => { req.body.examId = req.params.examId; next(); },
+  examController.bulkUploadExamResults
+);
+
 // Get student's exams (students can view their own, teachers/admins can view any)
 router.get("/student/:studentId", authenticateToken, examController.getStudentExams);
 

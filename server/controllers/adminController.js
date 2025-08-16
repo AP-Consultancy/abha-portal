@@ -1,8 +1,10 @@
 const Student = require("../models/studentData");
 const Teacher = require("../models/teacherModel");
+const Admin = require("../models/adminModel");
 const Class = require("../models/classModel");
 const FeeCollection = require("../models/feeCollection");
 const Attendance = require("../models/attendanceModel");
+const bcrypt = require("bcryptjs");
 
 function getMonthKey(date) {
   const d = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -129,6 +131,7 @@ module.exports.getDashboardSummary = async (req, res) => {
         totalStaff,
         totalClasses,
         revenue: feeSummary.totalPaid,
+        pendingFees: feeSummary.totalPending,
         attendanceToday: { present, absent, late },
       },
       charts: {
@@ -140,6 +143,88 @@ module.exports.getDashboardSummary = async (req, res) => {
     });
   } catch (error) {
     console.error("Error building admin dashboard:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+// Admin: change own password (requires currentPassword)
+module.exports.changeOwnPassword = async (req, res) => {
+  try {
+    const adminId = req.user?.id;
+    const { currentPassword, newPassword } = req.body || {};
+
+    if (!adminId) return res.status(401).json({ message: "Unauthorized" });
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "currentPassword and newPassword are required" });
+    }
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const admin = await Admin.findById(adminId);
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
+
+    const isMatch = await bcrypt.compare(currentPassword, admin.password || "");
+    if (!isMatch) return res.status(400).json({ message: "Current password is incorrect" });
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    admin.password = hashed;
+    await admin.save();
+
+    return res.json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error changing admin password:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+// Admin: change password for any user (student/teacher/admin)
+module.exports.changeUserPassword = async (req, res) => {
+  try {
+    const { userType, userId, enrollmentNo, scholarNumber, newPassword } = req.body || {};
+
+    if (!userType || !newPassword) {
+      return res.status(400).json({ message: "userType and newPassword are required" });
+    }
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const type = String(userType).toLowerCase();
+    let model;
+    if (type === "student") model = Student;
+    else if (type === "teacher") model = Teacher;
+    else if (type === "admin") model = Admin;
+    else return res.status(400).json({ message: "Invalid userType" });
+
+    let user = null;
+    if (userId) {
+      user = await model.findById(userId);
+    }
+    if (!user && type === "student" && (scholarNumber || enrollmentNo)) {
+      user = await Student.findOne({
+        $or: [
+          scholarNumber ? { scholarNumber } : null,
+          enrollmentNo ? { enrollmentNo } : null,
+        ].filter(Boolean),
+      });
+    }
+    if (!user && type === "teacher" && enrollmentNo) {
+      user = await Teacher.findOne({ enrollmentNo });
+    }
+    if (!user && type === "admin" && (enrollmentNo)) {
+      user = await Admin.findOne({ enrollmentNo });
+    }
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    user.password = hashed;
+    await user.save();
+
+    return res.json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error changing user password:", error);
     return res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };

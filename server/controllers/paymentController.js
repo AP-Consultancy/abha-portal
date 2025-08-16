@@ -6,6 +6,85 @@ const { generateReceipt } = require("../utils/receiptGenerator");
 const mongoose = require("mongoose");
 const razorpay = require("../config/razorpay");
 
+exports.markAsPaidManual = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { studentId, feeCollectionId, amount, notes, paymentMethod } = req.body;
+    if (!studentId || !feeCollectionId) {
+      return res.status(400).json({ message: "studentId and feeCollectionId are required" });
+    }
+    const feeCollection = await FeeCollection.findById(feeCollectionId).session(session);
+    if (!feeCollection) return res.status(404).json({ message: "Fee collection not found" });
+    if (String(feeCollection.studentId) !== String(studentId)) {
+      return res.status(400).json({ message: "Fee collection does not belong to this student" });
+    }
+
+    // Determine default amount if not passed: pay full pending + late fee
+    const payAmount = typeof amount === 'number' && amount > 0
+      ? amount
+      : feeCollection.pendingAmount + (feeCollection.lateFee || 0);
+
+    // Determine a valid payment method (fallback to CASH)
+    const allowedPaymentMethods = [
+      "CASH",
+      "CARD",
+      "UPI",
+      "BANK_TRANSFER",
+      "CHEQUE",
+      "ONLINE",
+      "DD",
+    ];
+    let resolvedPaymentMethod = (paymentMethod || "CASH").toString().toUpperCase();
+    if (!allowedPaymentMethods.includes(resolvedPaymentMethod)) {
+      resolvedPaymentMethod = "CASH";
+    }
+
+    // Create manual transaction record
+    const transaction = new PaymentTransaction({
+      transactionId: `MANUAL-${Date.now()}`,
+      feeCollectionId,
+      studentId,
+      amount: payAmount,
+      paymentMethod: resolvedPaymentMethod,
+      paymentGateway: "MANUAL",
+      paymentStatus: "SUCCESS",
+      paymentDate: new Date(),
+      remarks: notes || "Marked paid by admin",
+      processedBy: (req.user && (req.user.name || req.user.id || req.user._id)) || undefined,
+    });
+    await transaction.save({ session });
+
+    // Apply payment to fee collection (same logic as verify)
+    feeCollection.paidAmount += payAmount;
+    feeCollection.pendingAmount = Math.max(0, feeCollection.totalAmount + (feeCollection.lateFee || 0) - feeCollection.paidAmount);
+    let remainingAmount = payAmount;
+    for (const component of feeCollection.feeComponents) {
+      if (!component.isPaid && remainingAmount > 0) {
+        const componentDue = (component.amount - (component.paidAmount || 0));
+        const paymentForComponent = Math.min(remainingAmount, componentDue);
+        component.paidAmount = (component.paidAmount || 0) + paymentForComponent;
+        if (component.paidAmount >= component.amount) {
+          component.isPaid = true;
+          component.paidDate = new Date();
+        }
+        remainingAmount -= paymentForComponent;
+      }
+    }
+    feeCollection.paymentStatus = feeCollection.pendingAmount <= 0 ? "PAID" : "PARTIAL";
+    await feeCollection.save({ session });
+
+    await session.commitTransaction();
+    return res.json({ success: true, transaction, feeCollection, message: "Marked as paid" });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Manual payment error:', error);
+    return res.status(400).json({ message: "Failed to mark as paid", error: error.message });
+  } finally {
+    session.endSession();
+  }
+};
+
 exports.createOrder = async (req, res) => {
   console.log(razorpay, "razorpay <");
   

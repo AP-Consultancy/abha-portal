@@ -73,6 +73,56 @@ exports.getFeeDetails = async (req, res) => {
   }
 };
 
+// Internal helper: assign active fee structure to all students in class/year
+async function assignFeesForClass(academicYear, className, session) {
+  let fsQuery = FeeStructure.findOne({ academicYear, class: className, isActive: true });
+  if (session) fsQuery = fsQuery.session(session);
+  const feeStructure = await fsQuery;
+  if (!feeStructure) return { assigned: 0 };
+
+  let studentsQuery = Student.find({ className, academicYear });
+  if (session) studentsQuery = studentsQuery.session(session);
+  const students = await studentsQuery;
+  const now = new Date();
+  let assigned = 0;
+  for (const student of students) {
+    let existingQuery = FeeCollection.findOne({ studentId: student._id, academicYear });
+    if (session) existingQuery = existingQuery.session(session);
+    const existing = await existingQuery;
+    if (existing) continue;
+    const totalAmount = feeStructure.feeComponents.reduce((sum, c) => {
+      let multiplier = 1;
+      switch (c.frequency) {
+        case 'MONTHLY': multiplier = 12; break;
+        case 'QUARTERLY': multiplier = 4; break;
+        case 'ANNUALLY': multiplier = 1; break;
+        default: multiplier = 1;
+      }
+      return sum + (c.amount * multiplier);
+    }, 0);
+    await FeeCollection.create([{
+      receiptNumber: `RCPT${Date.now()}${Math.floor(Math.random()*1000)}`,
+      studentId: student._id,
+      academicYear,
+      term: 'ANNUAL',
+      feeComponents: feeStructure.feeComponents.map(c => ({
+        componentName: c.componentName,
+        amount: c.amount,
+        dueDate: new Date(now.getFullYear(), now.getMonth(), c.dueDate),
+        isPaid: false,
+      })),
+      totalAmount,
+      paidAmount: 0,
+      pendingAmount: totalAmount,
+      paymentStatus: 'PENDING',
+      dueDate: new Date(now.getFullYear(), now.getMonth(), 15),
+      isActive: true,
+    }], session ? { session } : undefined);
+    assigned++;
+  }
+  return { assigned };
+}
+
 // Admin: create or update fee structure per class/year
 exports.upsertFeeStructure = async (req, res) => {
   try {
@@ -93,7 +143,9 @@ exports.upsertFeeStructure = async (req, res) => {
       { academicYear, class: className, feeComponents: mapped, isActive },
       { new: true, upsert: true, runValidators: true }
     );
-    return res.json({ message: "Fee structure saved", feeStructure: doc });
+    // Auto-assign to existing students of the class/year
+    const { assigned } = await assignFeesForClass(academicYear, className);
+    return res.json({ message: "Fee structure saved and fees auto-assigned", autoAssigned: assigned, feeStructure: doc });
   } catch (error) {
     return res.status(500).json({ message: "Error saving fee structure", error: error.message });
   }
@@ -108,49 +160,9 @@ exports.assignFeesToClass = async (req, res) => {
     if (!academicYear || !className) {
       return res.status(400).json({ message: "academicYear and className are required" });
     }
-    const feeStructure = await FeeStructure.findOne({ academicYear, class: className, isActive: true });
-    if (!feeStructure) {
-      return res.status(404).json({ message: "Fee structure not found for class/year" });
-    }
-    const students = await Student.find({ className, academicYear }).session(session);
-    const now = new Date();
-    for (const student of students) {
-      // One collection per student aggregating all components (simple model)
-      const totalAmount = feeStructure.feeComponents.reduce((sum, c) => {
-        let multiplier = 1;
-        switch (c.frequency) {
-          case 'MONTHLY': multiplier = 12; break;
-          case 'QUARTERLY': multiplier = 4; break;
-          case 'ANNUALLY': multiplier = 1; break;
-          default: multiplier = 1;
-        }
-        return sum + (c.amount * multiplier);
-      }, 0);
-
-      const existing = await FeeCollection.findOne({ studentId: student._id, academicYear }).session(session);
-      if (existing) continue; // skip if already assigned
-
-      await FeeCollection.create([{
-        receiptNumber: `RCPT${Date.now()}${Math.floor(Math.random()*1000)}`,
-        studentId: student._id,
-        academicYear,
-        term: 'ANNUAL',
-        feeComponents: feeStructure.feeComponents.map(c => ({
-          componentName: c.componentName,
-          amount: c.amount,
-          dueDate: new Date(now.getFullYear(), now.getMonth(), c.dueDate),
-          isPaid: false,
-        })),
-        totalAmount,
-        paidAmount: 0,
-        pendingAmount: totalAmount,
-        paymentStatus: 'PENDING',
-        dueDate: new Date(now.getFullYear(), now.getMonth(), 15),
-        isActive: true,
-      }], { session });
-    }
+    const { assigned } = await assignFeesForClass(academicYear, className, session);
     await session.commitTransaction();
-    return res.json({ message: `Fees assigned to ${students.length} students for class ${className}` });
+    return res.json({ message: `Fees assigned to class ${className}`, assigned });
   } catch (error) {
     await session.abortTransaction();
     return res.status(500).json({ message: "Error assigning fees", error: error.message });
@@ -200,6 +212,7 @@ exports.bulkUploadFeeStructure = async (req, res) => {
     }
 
     let upserts = 0;
+    const assignments = [];
     for (const [key, components] of groupMap.entries()) {
       const [academicYear, className] = key.split("|");
       await FeeStructure.findOneAndUpdate(
@@ -207,11 +220,13 @@ exports.bulkUploadFeeStructure = async (req, res) => {
         { academicYear, class: className, feeComponents: components, isActive: true },
         { upsert: true, new: true, runValidators: true }
       );
+      const { assigned } = await assignFeesForClass(academicYear, className);
+      assignments.push({ academicYear, className, assigned });
       upserts++;
     }
 
     try { fs.unlinkSync(req.file.path); } catch (_) {}
-    return res.json({ message: "Bulk fee structure upload completed", updated: upserts });
+    return res.json({ message: "Bulk fee structure upload completed and fees auto-assigned", updated: upserts, assignments });
   } catch (error) {
     // cleanup file
     if (req.file && req.file.path) {
@@ -241,6 +256,7 @@ exports.generateFeeCollection = async (req, res) => {
     );
 
     const feeCollection = new FeeCollection({
+      receiptNumber: `RCPT${Date.now()}${Math.floor(Math.random()*1000)}`,
       studentId,
       academicYear: student.academicYear,
       term,
@@ -249,8 +265,11 @@ exports.generateFeeCollection = async (req, res) => {
         dueDate: new Date(comp.dueDate || dueDate),
       })),
       totalAmount,
+      paidAmount: 0,
       pendingAmount: totalAmount,
       dueDate: new Date(dueDate),
+      paymentStatus: 'PENDING',
+      isActive: true,
     });
 
     await feeCollection.save({ session });

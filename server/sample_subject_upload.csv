@@ -1,8 +1,8 @@
-Name,Code,Description,Grade,Hours Per Week
-Mathematics,MATH,Core mathematics curriculum for the grade,5,5
-Science,SCI,Integrated science covering physics chemistry biology,6,5
-English,ENG,English language and literature,7,5
-Computer Science,CS,Introduction to computing and programming,8,4
-Social Studies,SST,History civics geography and economics,9,4
-Hindi,HIN,Second language - Hindi,5,4
+Name,Code,Description,Grade,Hours Per Week,Teacher
+Mathematics,MATH,Core mathematics curriculum for the grade,5,5,Dr. Sarah Wilson
+Science,SCI,Integrated science covering physics chemistry biology,6,5,Mr. Robert Chen
+English,ENG,English language and literature,7,5,Ms. Priya Patel
+Computer Science,CS,Introduction to computing and programming,8,4,Prof. David Kumar
+Social Studies,SST,History civics geography and economics,9,4,Mrs. Lisa Singh
+Hindi,HIN,Second language - Hindi,5,4,Dr. Sarah Wilson
 

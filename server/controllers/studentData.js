@@ -538,6 +538,14 @@ module.exports.bulkUploadStudents = async (req, res) => {
 
         // Remove incomplete parent/guardian subdocuments to avoid validation errors
         const sanitizedData = { ...studentData.data };
+        // Remove empty enrollment/admission numbers to avoid null unique index conflicts
+        const removeIfEmpty = (obj, key) => {
+          if (obj[key] === '' || obj[key] === null || obj[key] === undefined) {
+            delete obj[key];
+          }
+        };
+        removeIfEmpty(sanitizedData, 'enrollmentNo');
+        removeIfEmpty(sanitizedData, 'admissionNo');
         const pruneIncompleteSubdoc = (obj, key) => {
           if (!obj[key]) return;
           const sub = obj[key] || {};
@@ -770,12 +778,15 @@ module.exports.getStudentDashboard = async (req, res) => {
     const attendancePercentage =
       totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
 
-    // Get pending fees
-    const pendingFees = await FeeCollection.findOne({
+    // Get pending fees (match paymentStatus and compute pending amount)
+    const pendingCollections = await FeeCollection.find({
       studentId: studentId,
       academicYear: student.academicYear,
-      status: "Pending",
-    });
+      isActive: true,
+      paymentStatus: { $in: ["PENDING", "PARTIAL"] },
+    }).sort({ dueDate: 1 });
+    const totalPendingAmount = (pendingCollections || []).reduce((sum, c) => sum + (c.pendingAmount || 0) + (c.lateFee || 0), 0);
+    const firstDue = pendingCollections?.[0]?.dueDate || null;
 
     // Get today's timetable
     const Timetable = require("../models/timetableModel");
@@ -816,10 +827,10 @@ module.exports.getStudentDashboard = async (req, res) => {
         totalDays: totalDays,
         presentDays: presentDays,
       },
-      pendingFees: pendingFees
+      pendingFees: totalPendingAmount > 0
         ? {
-            amount: pendingFees.amount,
-            dueDate: pendingFees.dueDate,
+            amount: totalPendingAmount,
+            dueDate: firstDue,
           }
         : { amount: 0 },
       todayTimetable: todaySchedule.map((period) => ({

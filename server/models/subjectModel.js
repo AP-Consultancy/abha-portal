@@ -26,6 +26,10 @@ const subjectSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+    teacher: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "teacher",
+    },
     isActive: {
       type: Boolean,
       default: true,

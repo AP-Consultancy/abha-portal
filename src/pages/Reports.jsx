@@ -44,7 +44,8 @@ const Reports = () => {
       ]);
 
       setClasses(classesData.classes || []);
-      setStudents(studentsData.students || []);
+      // studentService.getAllStudents returns an array
+      setStudents(Array.isArray(studentsData) ? studentsData : (studentsData.students || []));
       setTeachers(teachersData.teachers || []);
     } catch (error) {
       console.error('Error fetching initial data:', error);
@@ -211,9 +212,7 @@ const Reports = () => {
       if (filters.class) {
         const selectedClass = classes.find(c => c._id === filters.class);
         if (selectedClass) {
-          const classExams = exams.filter(exam => 
-            exam.class === selectedClass.name
-          );
+          const classExams = exams.filter(exam => String(exam.class?._id || exam.class) === String(selectedClass._id));
           return {
             title: 'Exam Results Report',
             type: 'exam-results',
@@ -347,9 +346,9 @@ const Reports = () => {
     const headers = ['Title', 'Subject', 'Class', 'Exam Date', 'Duration', 'Total Marks'];
     const rows = exams.map(e => [
       e.title,
-      e.subject,
-      e.class,
-      new Date(e.examDate).toLocaleDateString(),
+      (typeof e.subject === 'object' ? e.subject?.name : e.subject),
+      (typeof e.class === 'object' ? `${e.class?.name || ''} ${e.class?.section || ''}`.trim() : e.class),
+      e.examDate ? new Date(e.examDate).toLocaleDateString() : '',
       e.duration,
       e.totalMarks
     ]);

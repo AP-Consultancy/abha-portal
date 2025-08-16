@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, MinusIcon, EyeIcon, CurrencyDollarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
+import { accountsService } from '../services/accountsService';
 
 const Accounts = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -17,10 +18,8 @@ const Accounts = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      // TODO: Implement API calls for transactions
-      // const data = await transactionService.getAllTransactions();
-      // setTransactions(data.transactions || data || []);
-      setTransactions([]); // Placeholder until API is implemented
+      const data = await accountsService.getTransactions();
+      setTransactions(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
       setError('Failed to fetch transactions');

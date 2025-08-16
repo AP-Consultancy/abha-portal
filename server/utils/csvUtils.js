@@ -22,6 +22,7 @@ const STUDENT_HEADER_MAP = {
   section: 'section',
   academicyear: 'academicYear',
   session: 'academicYear',
+  admissiondate: 'admissionDate',
 
   // Optional fields commonly present in samples
   middlename: 'middleName',
@@ -72,6 +73,37 @@ const STUDENT_HEADER_MAP = {
   // Scholar number
   scholarno: 'scholarNumber',
   scholarnumber: 'scholarNumber',
+  
+  // Enrollment/Admission numbers
+  enrollmentno: 'enrollmentNo',
+  enrollmentnumber: 'enrollmentNo',
+  admissionno: 'admissionNo',
+  admissionnumber: 'admissionNo',
+  
+  // Government IDs
+  samagraid: 'samagraId',
+  aadharcard: 'aadharCard',
+  pan: 'pan',
+  aadharid: 'aadharId',
+  awasid: 'aadharId',
+
+  // Documents
+  birthcertificate: 'birthCertificate',
+  castecertificate: 'casteCertificate',
+  castecerti: 'casteCertificate',
+  transfercertificate: 'transferCertificate',
+  tc: 'transferCertificate',
+  migrationcertificate: 'migrationCertificate',
+  migration: 'migrationCertificate',
+  marksheet: 'markSheet',
+
+  // Bank details
+  bankname: 'bankName',
+  ifsccode: 'ifscCode',
+  branchname: 'branchName',
+  accountno: 'accountNo',
+  accountholder: 'accountHolderName',
+  accountholdername: 'accountHolderName',
 };
 
 /**
@@ -130,6 +162,15 @@ const mapStudentCsvRow = (row) => {
       case 'transportOpted': {
         const v = String(value || '').trim().toLowerCase();
         normalized.transportOpted = v === 'true' || v === '1' || v === 'yes';
+        break;
+      }
+      case 'bankName':
+      case 'ifscCode':
+      case 'branchName':
+      case 'accountNo':
+      case 'accountHolderName': {
+        normalized.bankDetails = normalized.bankDetails || {};
+        normalized.bankDetails[mappedKey] = String(value ?? '').trim();
         break;
       }
       default: {
@@ -232,8 +273,11 @@ const transformStudentData = async (csvData) => {
     className: csvData.className?.trim(),
     section: csvData.section?.trim(),
     academicYear: csvData.academicYear?.trim(),
-    admissionDate: new Date(),
+    admissionDate: csvData.admissionDate ? new Date(csvData.admissionDate) : new Date(),
     rollNo: csvData.rollNo?.trim() || '',
+    // Auto-generate identifiers if not provided
+    enrollmentNo: (csvData.enrollmentNo && csvData.enrollmentNo.trim()) || `ENR${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    admissionNo: (csvData.admissionNo && csvData.admissionNo.trim()) || `ADM${Date.now()}${Math.floor(Math.random() * 1000)}`,
 
     // Contact Info
     phone: csvData.phone?.trim() || '',
@@ -259,6 +303,19 @@ const transformStudentData = async (csvData) => {
     // Administrative
     status: 'Active',
     remarks: csvData.remarks?.trim() || '',
+
+    // Government IDs
+    samagraId: csvData.samagraId?.trim() || '',
+    aadharCard: csvData.aadharCard?.trim() || '',
+    pan: csvData.pan?.trim() || '',
+    aadharId: csvData.aadharId?.trim() || '',
+
+    // Documents (simple string fields)
+    birthCertificate: csvData.birthCertificate?.trim() || '',
+    casteCertificate: csvData.casteCertificate?.trim() || '',
+    transferCertificate: csvData.transferCertificate?.trim() || '',
+    migrationCertificate: csvData.migrationCertificate?.trim() || '',
+    markSheet: csvData.markSheet?.trim() || '',
 
     // Password Management
     password: hashedPassword,
@@ -307,6 +364,17 @@ const transformStudentData = async (csvData) => {
       phone: guardianPhone,
       email: csvData.guardianEmail?.trim() || '',
       relation: guardianRelation,
+    };
+  }
+
+  // Bank details if available
+  if (csvData.bankName || csvData.ifscCode || csvData.branchName || csvData.accountNo || csvData.accountHolderName) {
+    student.bankDetails = {
+      bankName: csvData.bankName?.trim() || '',
+      ifscCode: csvData.ifscCode?.trim() || '',
+      branchName: csvData.branchName?.trim() || '',
+      accountNo: csvData.accountNo?.trim() || '',
+      accountHolderName: csvData.accountHolderName?.trim() || '',
     };
   }
 

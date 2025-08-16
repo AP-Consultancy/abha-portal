@@ -6,6 +6,8 @@ const Teacher = require("../models/teacherModel");
 const Student = require("../models/studentData");
 const { parseCSV } = require("../utils/csvUtils");
 const { canAccessExamResults } = require("../utils/feeUtils");
+const csv = require('csv-parser');
+const fs = require('fs');
 
 // Get all exams (admin only)
 exports.getAllExams = async (req, res) => {
@@ -167,6 +169,8 @@ exports.createExam = async (req, res) => {
       room,
       examType,
       instructions,
+      applyToAllSections = false,
+      targetSectionClassIds = [],
     } = req.body;
 
     // Validate required fields
@@ -202,6 +206,49 @@ exports.createExam = async (req, res) => {
         success: false,
         message: "Teacher not found",
       });
+    }
+
+    // If specific sections are provided, create exams for those classes
+    if (Array.isArray(targetSectionClassIds) && targetSectionClassIds.length > 0) {
+      const payloads = targetSectionClassIds.map((cid) => ({
+        title,
+        subject,
+        class: cid,
+        teacher,
+        examDate,
+        startTime,
+        endTime,
+        duration,
+        totalMarks,
+        room,
+        examType,
+        instructions,
+        createdBy: req.user?.enrollmentNo || "admin",
+      }));
+      const created = await Exam.insertMany(payloads);
+      return res.status(201).json({ success: true, message: "Exam created for selected sections", createdCount: created.length });
+    }
+
+    // If applyToAllSections, create the exam for every section of this class name in the same academic year
+    if (applyToAllSections) {
+      const siblingClasses = await Class.find({ name: classData.name, academicYear: classData.academicYear }).select('_id');
+      const payloads = siblingClasses.map((c) => ({
+        title,
+        subject,
+        class: c._id,
+        teacher,
+        examDate,
+        startTime,
+        endTime,
+        duration,
+        totalMarks,
+        room,
+        examType,
+        instructions,
+        createdBy: req.user?.enrollmentNo || "admin",
+      }));
+      const created = await Exam.insertMany(payloads);
+      return res.status(201).json({ success: true, message: "Exam created for all sections", createdCount: created.length });
     }
 
     const newExam = new Exam({
@@ -607,6 +654,72 @@ exports.bulkUploadExams = async (req, res) => {
     });
   } catch (error) {
     console.error('Error during exam bulk upload:', error);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
+// Bulk upload exam results via CSV (Admin only)
+// Expected headers (case-insensitive): scholarnumber, marksobtained, isabsent
+exports.bulkUploadExamResults = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "CSV file is required" });
+    }
+    const { examId } = req.body;
+    if (!examId) {
+      try { fs.unlinkSync(req.file.path); } catch(_) {}
+      return res.status(400).json({ message: "examId is required" });
+    }
+    const exam = await Exam.findById(examId);
+    if (!exam) {
+      try { fs.unlinkSync(req.file.path); } catch(_) {}
+      return res.status(404).json({ message: "Exam not found" });
+    }
+
+    const rows = [];
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(req.file.path)
+        .pipe(csv())
+        .on('data', (data) => rows.push(data))
+        .on('end', resolve)
+        .on('error', reject);
+    });
+
+    const sanitize = (h) => String(h || '').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const resultsToInsert = [];
+    const errors = [];
+    for (let i = 0; i < rows.length; i++) {
+      const raw = rows[i];
+      // map headers
+      const map = {};
+      for (const [k,v] of Object.entries(raw)) { map[sanitize(k)] = v; }
+      const scholarNumber = (map['scholarnumber'] || map['scholarno'] || '').trim();
+      const marksObtainedStr = (map['marksobtained'] || '').trim();
+      const isAbsentStr = String(map['isabsent'] || '').trim().toLowerCase();
+      const isAbsent = isAbsentStr === 'true' || isAbsentStr === '1' || isAbsentStr === 'yes' || isAbsentStr === 'y';
+      if (!scholarNumber) { errors.push({ row: i+2, reason: 'Missing scholarNumber' }); continue; }
+      const studentDoc = await Student.findOne({ scholarNumber });
+      if (!studentDoc) { errors.push({ row: i+2, reason: 'Student not found' }); continue; }
+      const marksObtained = isAbsent ? 0 : Number(marksObtainedStr || 0);
+      if (!isAbsent && (marksObtainedStr === '' || Number.isNaN(marksObtained))) {
+        errors.push({ row: i+2, reason: 'Invalid marksObtained' }); continue;
+      }
+      // ensure no duplicate per student
+      const existing = await ExamResult.findOne({ exam: examId, student: studentDoc._id });
+      if (existing) { errors.push({ row: i+2, reason: 'Result already exists for student' }); continue; }
+      const percentage = exam.totalMarks > 0 ? Math.round((marksObtained / exam.totalMarks) * 10000) / 100 : 0;
+      const grade = isAbsent ? 'AB' : (percentage >= 90 ? 'A+' : percentage >= 80 ? 'A' : percentage >= 70 ? 'B+' : percentage >= 60 ? 'B' : percentage >= 50 ? 'C' : percentage >= 40 ? 'D' : 'F');
+      resultsToInsert.push({ exam: examId, student: studentDoc._id, marksObtained, isAbsent, totalMarks: exam.totalMarks, percentage, grade });
+    }
+
+    if (resultsToInsert.length > 0) {
+      await ExamResult.insertMany(resultsToInsert);
+    }
+    try { fs.unlinkSync(req.file.path); } catch(_) {}
+    return res.json({ message: 'Results upload completed', total: rows.length, saved: resultsToInsert.length, failed: errors.length, errors });
+  } catch (error) {
+    if (req.file && req.file.path) { try { fs.unlinkSync(req.file.path); } catch(_) {} }
+    console.error('Bulk results upload error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };

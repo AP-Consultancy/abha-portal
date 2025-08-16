@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, EyeIcon, DocumentTextIcon, CurrencyDollarIcon, ArrowUpTrayIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { feeService } from '../services/feeService';
+import { paymentService } from '../services/paymentService';
+import { studentService } from '../services/studentService';
 import { API_BASE_URL } from '../utils/constants';
 
 const Fees = () => {
@@ -13,11 +15,42 @@ const Fees = () => {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [extraFee, setExtraFee] = useState({ studentId: '', feeType: '', amount: '', dueDate: '' });
+  const [markPaid, setMarkPaid] = useState({ studentId: '', feeCollectionId: '', amount: '' });
+  const [markPaidCollections, setMarkPaidCollections] = useState([]);
 
   // Fetch fee records on component mount
   useEffect(() => {
     fetchFeeRecords();
+    // Preload students for the Generate Fee modal
+    (async () => {
+      try {
+        const allStudents = await studentService.getAllStudents();
+        setStudents(allStudents || []);
+      } catch (e) {
+        console.error('Failed to load students', e);
+      }
+    })();
   }, []);
+
+  // Load fee collections for selected student for manual mark-paid
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!markPaid.studentId) { setMarkPaidCollections([]); return; }
+        const res = await feeService.getFeeDetails(markPaid.studentId);
+        const cols = (res.feeCollections || []).filter(c => c.paymentStatus !== 'PAID');
+        setMarkPaidCollections(cols);
+        if (markPaid.feeCollectionId && !cols.find(c => (c._id === markPaid.feeCollectionId))) {
+          setMarkPaid(prev => ({ ...prev, feeCollectionId: '' }));
+        }
+      } catch (e) {
+        console.error('Failed to load fee collections for student', e);
+        setMarkPaidCollections([]);
+      }
+    })();
+  }, [markPaid.studentId]);
 
   const fetchFeeRecords = async () => {
     try {
@@ -70,12 +103,13 @@ const Fees = () => {
         })),
         isActive: true
       };
-      await fetch(`${API_BASE_URL}/api/fees/structure`, {
+      const res = await fetch(`${API_BASE_URL}/api/fees/structure`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify(payload)
       });
-      alert('Fee structure saved');
+      const data = await res.json().catch(() => ({}));
+      alert(data?.message || 'Fee structure saved');
     } catch (e) {
       console.error(e);
       alert('Failed to save structure');
@@ -85,15 +119,38 @@ const Fees = () => {
   const handleAssignFees = async () => {
     try {
       const payload = { academicYear: assignForm.academicYear, className: assignForm.className };
-      await fetch(`${API_BASE_URL}/api/fees/assign`, {
+      const res = await fetch(`${API_BASE_URL}/api/fees/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify(payload)
       });
-      alert('Fees assigned to class');
+      const data = await res.json().catch(() => ({}));
+      alert(data?.message || 'Fees assigned to class');
     } catch (e) {
       console.error(e);
       alert('Failed to assign fees');
+    }
+  };
+
+  const handleGenerateExtraFee = async () => {
+    try {
+      if (!extraFee.studentId || !extraFee.feeType || !extraFee.amount || !extraFee.dueDate) {
+        alert('Please select student, fee type, amount and due date');
+        return;
+      }
+      const payload = {
+        studentId: extraFee.studentId,
+        term: 'EXTRA',
+        feeComponents: [{ componentName: extraFee.feeType, amount: Number(extraFee.amount) }],
+        dueDate: extraFee.dueDate,
+      };
+      await feeService.generateFeeCollection(payload);
+      alert('Extra fee generated');
+      setShowAddModal(false);
+      setExtraFee({ studentId: '', feeType: '', amount: '', dueDate: '' });
+    } catch (e) {
+      console.error(e);
+      alert('Failed to generate extra fee');
     }
   };
 
@@ -198,6 +255,54 @@ const Fees = () => {
           <button onClick={handleAssignFees} className="px-4 py-2 bg-purple-600 text-white rounded-lg">Assign to Class</button>
         </div>
       </div>
+
+      {/* Admin: Mark Payment Manual */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Mark Payment (Manual)</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+            <select value={markPaid.studentId} onChange={(e)=> setMarkPaid({ ...markPaid, studentId: e.target.value, feeCollectionId: '' })} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+              <option value="">Select Student</option>
+              {students.map(s => (
+                <option key={s._id} value={s._id}>{`${s.firstName || ''} ${s.lastName || ''}`.trim()} - ${s.className}${s.section ? `-${s.section}`:''}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fee Collection</label>
+            <select value={markPaid.feeCollectionId} onChange={(e)=> setMarkPaid({ ...markPaid, feeCollectionId: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+              <option value="">Select Fee Collection</option>
+              {markPaidCollections.map(c => (
+                <option key={c._id} value={c._id}>{`${c.receiptNumber} — Pending ₹${(c.pendingAmount || 0) + (c.lateFee || 0)} — Due ${new Date(c.dueDate).toLocaleDateString()}`}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount (optional)</label>
+            <input type="number" placeholder="Leave blank for full pending" value={markPaid.amount} onChange={(e)=> setMarkPaid({ ...markPaid, amount: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+        <div className="mt-4">
+          <button disabled={!markPaid.studentId || !markPaid.feeCollectionId} onClick={async ()=>{
+            try {
+              if (!markPaid.studentId || !markPaid.feeCollectionId) { alert('Select student and fee collection'); return; }
+              const payload = { studentId: markPaid.studentId, feeCollectionId: markPaid.feeCollectionId };
+              if (markPaid.amount) payload.amount = Number(markPaid.amount);
+              const token = localStorage.getItem('token');
+              const res = await fetch(`${API_BASE_URL}/api/payments/mark-paid`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+              let data = {};
+              try { data = await res.json(); } catch(_) {}
+              if (!res.ok) {
+                const text = data?.message || `${res.status} ${res.statusText}`;
+                throw new Error(text);
+              }
+              alert('Marked as paid');
+            } catch(e) { console.error(e); alert(e.message || 'Failed to mark as paid'); }
+          }} className={`px-4 py-2 text-white rounded-lg ${(!markPaid.studentId || !markPaid.feeCollectionId) ? 'bg-green-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}>Mark Paid</button>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Fee Management</h1>
@@ -322,34 +427,30 @@ const Fees = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option>Select Student</option>
-                      {/* TODO: Populate with actual students from API */}
+                    <select value={extraFee.studentId} onChange={(e)=> setExtraFee({ ...extraFee, studentId: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      <option value="">Select Student</option>
+                      {students.map(s => (
+                        <option key={s._id} value={s._id}>{`${s.firstName || ''} ${s.lastName || ''}`.trim()} - ${s.className}${s.section ? `-${s.section}`:''}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fee Type</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option>Select Fee Type</option>
-                      <option>Monthly Fee</option>
-                      <option>Annual Fee</option>
-                      <option>Transport Fee</option>
-                      <option>Library Fee</option>
-                    </select>
+                    <input value={extraFee.feeType} onChange={(e)=> setExtraFee({ ...extraFee, feeType: e.target.value })} placeholder="e.g., Transport Fee" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                    <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="number" value={extraFee.amount} onChange={(e)=> setExtraFee({ ...extraFee, amount: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                    <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="date" value={extraFee.dueDate} onChange={(e)=> setExtraFee({ ...extraFee, dueDate: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
               </div>
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
-                  onClick={() => setShowAddModal(false)}
+                  onClick={handleGenerateExtraFee}
                   className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Generate Fee

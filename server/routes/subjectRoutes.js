@@ -13,6 +13,9 @@ router.get("/:id", authenticateToken, subjectController.getSubjectById);
 // Get subjects taught by a teacher (admin/teacher)
 router.get("/teacher/:teacherId", authenticateToken, requireTeacher, subjectController.getSubjectsByTeacher);
 
+// Get teachers for a given subject (admin/teacher)
+router.get("/by-subject/:subjectId/teachers", authenticateToken, requireTeacher, subjectController.getTeachersBySubject);
+
 // Get subjects for a class (admin/teacher)
 router.get("/class/:classId", authenticateToken, requireTeacher, subjectController.getSubjectsByClass);
 

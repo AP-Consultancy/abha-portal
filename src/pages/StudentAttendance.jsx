@@ -23,15 +23,17 @@ const StudentAttendance = () => {
   }, []);
 
   useEffect(() => {
-    if (startDate && endDate && user?.id) {
-      fetchAttendance();
+    if (!startDate || !endDate) return;
+    const studentId = user?.userData?._id || user?.student?._id || user?.id;
+    if (studentId) {
+      fetchAttendance(studentId);
     }
   }, [startDate, endDate, user]);
 
-  const fetchAttendance = async () => {
+  const fetchAttendance = async (studentId) => {
     try {
       setLoading(true);
-      const data = await attendanceService.getStudentAttendance(user.id, startDate, endDate);
+      const data = await attendanceService.getStudentAttendance(studentId, startDate, endDate);
       setAttendance(data.attendance || []);
       setStatistics(data.statistics || {});
     } catch (error) {

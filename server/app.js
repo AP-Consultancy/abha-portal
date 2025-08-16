@@ -17,6 +17,7 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const classRoutes = require("./routes/classRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const accountsRoutes = require("./routes/accountsRoutes");
 const examRoutes = require("./routes/examRoutes");
 const promotionRoutes = require("./routes/promotionRoutes");
 const timetableRoutes = require("./routes/timetableRoutes");
@@ -54,6 +55,16 @@ async function connectToDatabase() {
       serverSelectionTimeoutMS: 10000,
     });
     console.log("✅ Connected to MongoDB Atlas");
+
+    // Ensure the class collection has the correct compound unique index
+    // (name, section, academicYear) so multiple sections per class are allowed.
+    try {
+      const Class = require("./models/classModel");
+      await Class.syncIndexes();
+      console.log("✅ Synchronized class indexes (name, section, academicYear)");
+    } catch (indexError) {
+      console.error("Error synchronizing class indexes:", indexError);
+    }
   } catch (error) {
     console.error("Error while connecting to the database:", error);
   }
@@ -79,6 +90,7 @@ app.use("/api/promotions", promotionRoutes);
 app.use("/api/timetable", timetableRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/accounts", accountsRoutes);
 
 // Serve generated receipts statically
 app.use("/receipts", express.static(path.join(__dirname, "receipts")));

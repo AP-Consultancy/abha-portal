@@ -17,6 +17,7 @@ const RoleAwareExams = () => {
   const [examResults, setExamResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [feeStatus, setFeeStatus] = useState(null);
 
   useEffect(() => {
     const fetchExams = async () => {
@@ -30,6 +31,7 @@ const RoleAwareExams = () => {
             const response = await examService.getStudentExams(studentId);
             data = response.exams || [];
             setExamResults(response.examResults || []);
+            setFeeStatus(response.feeStatus || null);
           }
         } else if (userRole === "teacher" || userRole === "employee") {
           const teacherId = user?.userData?._id || user?.teacher?._id;
@@ -93,6 +95,15 @@ const RoleAwareExams = () => {
             : "View exams you are conducting"}
         </p>
       </div>
+
+      {userRole === 'student' && feeStatus && feeStatus.canAccessResults === false && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-6">
+          <div className="flex items-center justify-between">
+            <span>{feeStatus.reason || 'Results are locked until pending fees are cleared.'}</span>
+            <a href="/fees" className="text-yellow-900 font-medium underline">Go to Fees</a>
+          </div>
+        </div>
+      )}
 
       {exams.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-6">

@@ -553,6 +553,35 @@ exports.deleteClass = async (req, res) => {
   }
 }; 
 
+// Admin utility: ensure all students are linked to their class documents
+exports.reconcileClassMemberships = async (req, res) => {
+  try {
+    const students = await Student.find({}, {
+      _id: 1,
+      className: 1,
+      section: 1,
+      academicYear: 1,
+    });
+    let linked = 0;
+    let already = 0;
+    let missingClass = 0;
+    for (const s of students) {
+      if (!s.className || !s.section || !s.academicYear) continue;
+      const cls = await Class.findOne({ name: s.className, section: s.section, academicYear: s.academicYear });
+      if (!cls) { missingClass++; continue; }
+      const exists = cls.students.some((id) => String(id) === String(s._id));
+      if (exists) { already++; continue; }
+      cls.students.push(s._id);
+      await cls.save();
+      linked++;
+    }
+    return res.json({ success: true, message: 'Reconciled class memberships', linked, already, missingClass });
+  } catch (error) {
+    console.error('Error reconciling class memberships:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+};
+
 // Bulk upload classes (Admin only)
 exports.bulkUploadClasses = async (req, res) => {
   try {

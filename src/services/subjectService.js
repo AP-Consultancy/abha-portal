@@ -78,4 +78,15 @@ export const subjectService = {
       throw error;
     }
   },
+
+  // Get teachers by subject
+  getTeachersBySubject: async (subjectId) => {
+    try {
+      const data = await apiService.get(`${API_ENDPOINTS.SUBJECTS}/by-subject/${subjectId}/teachers`);
+      return data;
+    } catch (error) {
+      console.error('Error fetching teachers for subject:', error);
+      throw error;
+    }
+  },
 };

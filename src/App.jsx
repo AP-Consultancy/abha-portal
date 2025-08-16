@@ -88,10 +88,14 @@ function App() {
                               }
                             />
 
-                            {/* Classes - Admin can manage, others view only */}
+                            {/* Classes - Admin can manage; teachers view their classes */}
                             <Route
                               path="/classes"
-                              element={<RoleAwareClasses />}
+                              element={
+                                <ProtectedRoute requiredRoles={["admin", "teacher", "employee"]}>
+                                  <RoleAwareClasses />
+                                </ProtectedRoute>
+                              }
                             />
 
                             {/* Subjects - Admin can manage, others view only */}

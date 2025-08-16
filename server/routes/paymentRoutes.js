@@ -5,6 +5,7 @@ const {
   verifyAndRecordPayment,
   getTransactionHistory,
   processRefund,
+  markAsPaidManual,
 } = require("../controllers/paymentController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 
@@ -17,5 +18,8 @@ router.get("/transactions/:studentId", authenticateToken, getTransactionHistory)
 
 // Only admins can process refunds
 router.post("/refund", authenticateToken, requireAdmin, processRefund);
+
+// Admin can mark a fee collection as paid (offline/manual)
+router.post("/mark-paid", authenticateToken, requireAdmin, markAsPaidManual);
 
 module.exports = router;

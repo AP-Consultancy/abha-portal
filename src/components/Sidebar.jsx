@@ -52,7 +52,7 @@ const allNavigation = [
     name: "My Classes",
     href: "/classes",
     icon: AcademicCapIcon,
-    roles: ["student", "employee", "teacher"],
+    roles: ["teacher", "employee"],
   },
   {
     name: "Subjects",
@@ -64,7 +64,7 @@ const allNavigation = [
     name: "My Subjects",
     href: "/subjects",
     icon: BookOpenIcon,
-    roles: ["student", "employee", "teacher"],
+    roles: ["student"],
   },
   {
     name: "Fees Management",

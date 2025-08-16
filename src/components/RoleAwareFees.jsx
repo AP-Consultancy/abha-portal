@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Fees from '../pages/Fees';
 import { feeService } from '../services/feeService';
 import { CurrencyDollarIcon, CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import PaymentButton from './PaymentButton/PaymentButton';
 
 const RoleAwareFees = () => {
   const { getUserRole, user } = useAuth();
@@ -20,7 +21,7 @@ const RoleAwareFees = () => {
           const studentId = user?.userData?._id || user?.student?._id;
           if (studentId) {
             const response = await feeService.getFeeDetails(studentId);
-            setFeeData(response.data);
+            setFeeData(response);
           }
         }
       } catch (err) {
@@ -212,6 +213,7 @@ const RoleAwareFees = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
+                        <th className="px-6 py-3" />
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -242,6 +244,24 @@ const RoleAwareFees = () => {
                             }`}>
                               {collection.paymentStatus}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                            {collection.paymentStatus !== 'PAID' && (
+                              <PaymentButton
+                                amount={(collection.pendingAmount || 0) + (collection.lateFee || 0)}
+                                feeCollection={collection}
+                                student={feeData.student}
+                                onPaymentSuccess={async () => {
+                                  try {
+                                    const studentId = feeData.student._id;
+                                    const refreshed = await feeService.getFeeDetails(studentId);
+                                    setFeeData(refreshed);
+                                  } catch (e) {
+                                    console.error('Failed to refresh fee data after payment', e);
+                                  }
+                                }}
+                              />
+                            )}
                           </td>
                         </tr>
                       ))}
