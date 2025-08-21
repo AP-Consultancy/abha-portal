@@ -236,9 +236,9 @@ const Students = () => {
             <CSVUpload
               onUpload={handleCSVUpload}
               title="Upload Student Data"
-              description="Upload a CSV file to import multiple students at once"
+              description="Upload a CSV or Excel file to import multiple students at once"
               entityType="students"
-              acceptedFileTypes=".csv,.xlsx,.xls"
+              acceptedFileTypes=".csv,.xlsx,.xls,.xlsm,.xlsb,.xlsv"
               maxFileSize={10}
               showCredentialExport={true}
               credentialData={uploadedCredentials}
