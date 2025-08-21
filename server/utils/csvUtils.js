@@ -1,5 +1,12 @@
 const csv = require('csv-parser');
 const fs = require('fs');
+const path = require('path');
+let xlsx;
+try {
+  xlsx = require('xlsx');
+} catch (e) {
+  xlsx = null;
+}
 const { generateRandomPassword, hashPassword } = require('./passwordUtils');
 
 // Sanitize CSV header: lowercase and remove non-alphanumeric characters
@@ -191,14 +198,36 @@ const mapStudentCsvRow = (row) => {
 };
 
 /**
- * Parse CSV file and return array of objects
- * @param {string} filePath - Path to CSV file
+ * Parse CSV or Excel file and return array of objects
+ * @param {string} filePath - Path to CSV/XLS/XLSX/XLSM/XLSB file
  * @returns {Promise<Array>} Array of parsed objects
  */
 const parseCSV = (filePath) => {
+  const ext = path.extname(filePath).toLowerCase();
+  const excelExtensions = new Set(['.xls', '.xlsx', '.xlsm', '.xlsb', '.xlsv']);
+  if (excelExtensions.has(ext)) {
+    if (!xlsx) {
+      return Promise.reject(new Error('Excel parsing not available. Please install xlsx package.'));
+    }
+    try {
+      // Read as buffer to handle non-standard extensions like .xlsv
+      const fileBuffer = fs.readFileSync(filePath);
+      const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
+      const allRows = [];
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+        // Combine rows from all sheets
+        allRows.push(...rows);
+      }
+      return Promise.resolve(allRows);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const results = [];
-    
     fs.createReadStream(filePath)
       .pipe(csv())
       .on('data', (data) => results.push(data))

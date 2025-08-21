@@ -482,11 +482,11 @@ module.exports.bulkUploadStudents = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
-        message: "CSV file is required",
+        message: "CSV or Excel file is required",
       });
     }
 
-    // Parse and process the CSV file
+    // Parse and process the CSV/Excel file
     const parsedRows = await parseCSV(req.file.path);
     const csvData = await processBulkStudentUpload(parsedRows);
 

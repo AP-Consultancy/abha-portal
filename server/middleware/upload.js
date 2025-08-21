@@ -26,11 +26,13 @@ const fileFilter = (req, file, cb) => {
   const allowedTypes = [
     'text/csv',
     'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel.sheet.macroEnabled.12',
+    'application/vnd.ms-excel.sheet.binary.macroEnabled.12'
   ];
   
   // Check file extension
-  const allowedExtensions = ['.csv', '.xls', '.xlsx'];
+  const allowedExtensions = ['.csv', '.xls', '.xlsx', '.xlsm', '.xlsb', '.xlsv'];
   const fileExtension = path.extname(file.originalname).toLowerCase();
   
   if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {

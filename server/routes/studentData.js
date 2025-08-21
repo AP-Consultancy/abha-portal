@@ -2,22 +2,7 @@ const express = require("express");
 const router = express.Router();
 const StudentDataController = require("../controllers/studentData");
 const { authenticateToken, requireAdmin, requireTeacher } = require("../middleware/auth");
-const multer = require("multer");
-
-// Configure multer for CSV file upload
-const upload = multer({
-  dest: 'uploads/',
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only CSV files are allowed'), false);
-    }
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
-});
+const upload = require("../middleware/upload");
 
 // Admin/Teacher only routes
 router.route("/create-student").post(authenticateToken, requireAdmin, StudentDataController.createStudent);
