@@ -331,3 +331,181 @@ exports.updateLateFees = async (req, res) => {
       .json({ message: "Error updating late fees", error: error.message });
   }
 };
+
+// Mark fees as paid (with partial payment support)
+exports.markFeesAsPaid = async (req, res) => {
+  try {
+    const { studentId, feeCollectionId, amount, paymentMethod = 'CASH', receiptNumber } = req.body;
+    
+    if (!studentId || !feeCollectionId) {
+      return res.status(400).json({ message: "Student ID and Fee Collection ID are required" });
+    }
+
+    // Find the fee collection
+    const feeCollection = await FeeCollection.findById(feeCollectionId);
+    if (!feeCollection) {
+      return res.status(404).json({ message: "Fee collection not found" });
+    }
+
+    // Verify the student
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    // Calculate payment details
+    const pendingAmount = feeCollection.pendingAmount || 0;
+    const lateFee = feeCollection.lateFee || 0;
+    const totalPending = pendingAmount + lateFee;
+    
+    // If no amount specified, mark as fully paid
+    const paymentAmount = amount ? Number(amount) : totalPending;
+    
+    if (paymentAmount <= 0) {
+      return res.status(400).json({ message: "Payment amount must be greater than 0" });
+    }
+
+    if (paymentAmount > totalPending) {
+      return res.status(400).json({ message: "Payment amount cannot exceed pending amount" });
+    }
+
+    // Update fee collection
+    const newPaidAmount = (feeCollection.paidAmount || 0) + paymentAmount;
+    const newPendingAmount = Math.max(0, totalPending - paymentAmount);
+    
+    // Determine new payment status
+    let newPaymentStatus = 'PARTIAL';
+    if (newPendingAmount === 0) {
+      newPaymentStatus = 'PAID';
+    } else if (newPendingAmount > 0) {
+      newPaymentStatus = 'PARTIAL';
+    }
+
+    // Update fee collection
+    const updatedFeeCollection = await FeeCollection.findByIdAndUpdate(
+      feeCollectionId,
+      {
+        paidAmount: newPaidAmount,
+        pendingAmount: newPendingAmount,
+        paymentStatus: newPaymentStatus,
+        $push: {
+          paymentHistory: {
+            amount: paymentAmount,
+            date: new Date(),
+            method: paymentMethod,
+            receiptNumber: receiptNumber || `RCPT${Date.now()}`,
+            collectedBy: req.user?.id || 'admin'
+          }
+        }
+      },
+      { new: true }
+    );
+
+    // Create payment transaction record
+    try {
+      const PaymentTransaction = require("../models/paymentTransaction");
+      const paymentTransaction = new PaymentTransaction({
+        transactionId: `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        studentId,
+        feeCollectionId,
+        amount: paymentAmount,
+        paymentMethod,
+        paymentGateway: 'MANUAL',
+        paymentStatus: 'SUCCESS',
+        processedBy: req.user?.id || 'admin',
+        remarks: `Marked as paid via admin panel - Receipt: ${receiptNumber || `RCPT${Date.now()}`}`
+      });
+      
+      console.log('Creating payment transaction:', {
+        transactionId: paymentTransaction.transactionId,
+        studentId,
+        feeCollectionId,
+        amount: paymentAmount,
+        paymentMethod,
+        paymentGateway: 'MANUAL'
+      });
+      
+      await paymentTransaction.save();
+      console.log('Payment transaction saved successfully');
+    } catch (transactionError) {
+      console.error('Error creating payment transaction:', transactionError);
+      // Continue with the response even if transaction creation fails
+    }
+
+    res.json({
+      message: "Fees marked as paid successfully",
+      feeCollection: updatedFeeCollection,
+      summary: {
+        previousPending: totalPending,
+        paymentAmount,
+        newPending: newPendingAmount,
+        newStatus: newPaymentStatus
+      }
+    });
+
+  } catch (error) {
+    console.error('Error marking fees as paid:', error);
+    res.status(500).json({ 
+      message: "Error marking fees as paid", 
+      error: error.message 
+    });
+  }
+};
+
+// Search student by scholar number
+exports.searchStudentByScholarNumber = async (req, res) => {
+  try {
+    const { scholarNumber } = req.params;
+    
+    if (!scholarNumber) {
+      return res.status(400).json({ message: "Scholar number is required" });
+    }
+
+    // Search for student by scholar number
+    const student = await Student.findOne({ 
+      scholarNumber: { $regex: scholarNumber, $options: 'i' } 
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found with this scholar number" });
+    }
+
+    // Get fee details for the student
+    const feeStructure = await FeeStructure.findOne({
+      academicYear: student.academicYear,
+      class: student.className,
+      isActive: true,
+    });
+
+    const feeCollections = await FeeCollection.find({
+      studentId: student._id,
+      isActive: true,
+    }).sort({ dueDate: 1 });
+
+    // Calculate summary
+    const totalFee = feeCollections.reduce((sum, fee) => sum + (fee.totalAmount || 0), 0);
+    const totalPaid = feeCollections.reduce((sum, fee) => sum + (fee.paidAmount || 0), 0);
+    const totalPending = feeCollections.reduce((sum, fee) => sum + (fee.pendingAmount || 0), 0);
+    const totalLateFee = feeCollections.reduce((sum, fee) => sum + (fee.lateFee || 0), 0);
+
+    res.json({
+      student,
+      feeStructure,
+      feeCollections,
+      summary: {
+        totalFee,
+        totalPaid,
+        totalPending,
+        totalLateFee,
+        totalDue: totalPending + totalLateFee
+      }
+    });
+
+  } catch (error) {
+    console.error('Error searching student by scholar number:', error);
+    res.status(500).json({ 
+      message: "Error searching student", 
+      error: error.message 
+    });
+  }
+};

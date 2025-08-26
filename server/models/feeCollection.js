@@ -34,6 +34,14 @@ const feeCollectionSchema = new mongoose.Schema({
     reason: String,
     appliedBy: String,
   },
+  paymentHistory: [{
+    amount: { type: Number, required: true },
+    date: { type: Date, default: Date.now },
+    method: { type: String, default: 'CASH' },
+    receiptNumber: String,
+    collectedBy: String,
+    notes: String
+  }],
   isActive: { type: Boolean, default: true },
 });
 

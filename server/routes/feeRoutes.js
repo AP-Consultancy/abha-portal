@@ -7,6 +7,8 @@ const {
   upsertFeeStructure,
   assignFeesToClass,
   bulkUploadFeeStructure,
+  markFeesAsPaid,
+  searchStudentByScholarNumber,
 } = require("../controllers/feeController");
 const { authenticateToken, requireAdmin, requireTeacher } = require("../middleware/auth");
 
@@ -28,5 +30,11 @@ router.post("/assign", authenticateToken, requireAdmin, assignFeesToClass);
 // Admin: bulk upload fee structure CSV
 const upload = require("../middleware/upload");
 router.post("/structure/bulk-upload", authenticateToken, requireAdmin, upload.single('csvFile'), bulkUploadFeeStructure);
+
+// Mark fees as paid (with partial payment support)
+router.post("/mark-paid", authenticateToken, requireAdmin, markFeesAsPaid);
+
+// Search student by scholar number
+router.get("/search/scholar/:scholarNumber", authenticateToken, requireAdmin, searchStudentByScholarNumber);
 
 module.exports = router;

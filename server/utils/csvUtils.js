@@ -243,7 +243,7 @@ const parseCSV = (filePath) => {
  */
 const validateStudentData = (studentData) => {
   const errors = [];
-  const requiredFields = ['firstName', 'lastName', 'gender', 'dob', 'className', 'section', 'academicYear', 'scholarNumber'];
+  const requiredFields = ['firstName', 'lastName', 'gender', 'dob', 'className', 'section', 'academicYear', 'scholarNumber','address'];
   
   // Check required fields
   requiredFields.forEach(field => {

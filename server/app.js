@@ -11,6 +11,12 @@ const { setStudentPassword } = require("./utils/helperFunctions");
 const { setTeacherPassword } = require("./utils/helperFunctions");
 const { createDefaultAdmin } = require("./utils/helperFunctions");
 
+// Import models to ensure they're registered with Mongoose
+require("./models/teacherModel");
+require("./models/classModel");
+require("./models/subjectModel");
+require("./models/homeworkModel");
+
 const errorHandler = require("./middleware/errorHandler");
 const feeRoutes = require("./routes/feeRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
@@ -22,6 +28,7 @@ const examRoutes = require("./routes/examRoutes");
 const promotionRoutes = require("./routes/promotionRoutes");
 const timetableRoutes = require("./routes/timetableRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
+const homeworkRoutes = require("./routes/homeworkRoutes");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const port = process.env.PORT || 5000;
@@ -89,6 +96,7 @@ app.use("/api/exams", examRoutes);
 app.use("/api/promotions", promotionRoutes);
 app.use("/api/timetable", timetableRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/homework", homeworkRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/accounts", accountsRoutes);
 

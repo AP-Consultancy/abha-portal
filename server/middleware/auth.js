@@ -74,7 +74,7 @@ const requireRole = (allowedRoles) => {
 
 // Specific role middlewares
 const requireAdmin = requireRole(['admin']);
-const requireTeacher = requireRole(['teacher', 'admin']);
+const requireTeacher = requireRole(['teacher', 'admin', 'employee']);
 const requireStudent = requireRole(['student', 'teacher', 'admin']);
 
 module.exports = {
