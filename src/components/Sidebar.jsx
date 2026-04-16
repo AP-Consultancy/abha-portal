@@ -91,6 +91,24 @@ const allNavigation = [
     roles: ["student"],
   },
   {
+    name: "My Homework",
+    href: "/homework",
+    icon: DocumentTextIcon,
+    roles: ["student"],
+  },
+  {
+    name: "Assign Homework",
+    href: "/homework",
+    icon: DocumentTextIcon,
+    roles: ["teacher", "employee"],
+  },
+  {
+    name: "Homework Management",
+    href: "/homework",
+    icon: DocumentTextIcon,
+    roles: ["admin"],
+  },
+  {
     name: "Timetable",
     href: "/timetable",
     icon: CalendarIcon,

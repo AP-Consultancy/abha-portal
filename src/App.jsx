@@ -26,6 +26,8 @@ import Settings from "./pages/Settings";
 import Accounts from "./pages/Accounts";
 import CreateStudent from "./pages/AddStudent";
 import TeacherRegistrationForm from "./pages/AddTeacher";
+import AssignHomework from "./pages/AssignHomework";
+import MyHomework from "./pages/MyHomework";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleBasedRedirect from "./components/RoleBasedRedirect";
@@ -37,6 +39,7 @@ import RoleAwareAttendance from "./components/RoleAwareAttendance";
 import RoleAwareTimetable from "./components/RoleAwareTimetable";
 import RoleAwareExams from "./components/RoleAwareExams";
 import RoleAwareDashboard from "./components/RoleAwareDashboard";
+import RoleAwareHomework from "./components/RoleAwareHomework";
 import StudentProfile from "./components/StudentProfile";
 import RoleAwareProfile from "./components/RoleAwareProfile";
 
@@ -142,6 +145,9 @@ function App() {
                             {/* Exams - Admin can manage, others view their own */}
                             <Route path="/exams" element={<RoleAwareExams />} />
 
+                            {/* Homework - Role-aware component */}
+                            <Route path="/homework" element={<RoleAwareHomework />} />
+
                             {/* Reports - Admin only */}
                             <Route
                               path="/reports"
@@ -188,6 +194,25 @@ function App() {
                               element={
                                 <ProtectedRoute requiredRoles={["admin"]}>
                                   <TeacherRegistrationForm />
+                                </ProtectedRoute>
+                              }
+                            />
+
+                            {/* Homework Routes */}
+                            <Route
+                              path="/assign-homework"
+                              element={
+                                <ProtectedRoute allowedRoles={["teacher", "employee"]}>
+                                  <AssignHomework />
+                                </ProtectedRoute>
+                              }
+                            />
+
+                            <Route
+                              path="/my-homework"
+                              element={
+                                <ProtectedRoute allowedRoles={["student"]}>
+                                  <MyHomework />
                                 </ProtectedRoute>
                               }
                             />

@@ -127,6 +127,8 @@ export const API_ENDPOINTS = {
   EXAMS: "/api/exams",
   EXAM_RESULTS: (examId) => `/api/exams/${examId}/results`,
   STUDENT_EXAM_RESULTS: (studentId) => `/api/exams/student/${studentId}/results`,
+  // Homework endpoints
+  HOMEWORK: "/api/homework",
   // Promotion endpoints
   PROMOTION_ELIGIBILITY: (studentId) => `/api/promotions/eligibility/${studentId}`,
   PROMOTE_STUDENT: (studentId) => `/api/promotions/promote/${studentId}`,

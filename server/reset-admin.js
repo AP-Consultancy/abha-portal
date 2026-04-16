@@ -2,11 +2,8 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, 'server', '.env') });
+dotenv.config({ path: './.env' });
 
 // Admin model
 const adminSchema = new mongoose.Schema({
