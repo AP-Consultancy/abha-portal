@@ -88,7 +88,7 @@ const CreateStudent = () => {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/classes", { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch("http://localhost:5001/api/classes", { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
           const data = await res.json();
           const classes = data.classes || [];
@@ -137,7 +137,7 @@ const CreateStudent = () => {
       const token = localStorage.getItem("token");
       
       const response = await fetch(
-        "http://localhost:5000/api/student/create-student",
+        "http://localhost:5001/api/student/create-student",
         {
           method: "POST",
           headers: {

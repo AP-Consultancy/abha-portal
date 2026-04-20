@@ -81,6 +81,10 @@ const studentSchema = new mongoose.Schema(
     section: { type: String, required: true }, // e.g., "A", "B"
     academicYear: { type: String, required: true }, // e.g., "2024-2025"
     admissionDate: { type: Date, required: true },
+    feeProfileType: {
+      type: String,
+      enum: ["NEW", "EXISTING"],
+    },
     rollNo: { type: String }, // Class roll number
 
     // Contact Info

@@ -128,7 +128,7 @@
 //     try {
 //       setLoading(true);
 //       const response = await fetch(
-//         "http://localhost:5000/api/student/getallstudents",
+//         "http://localhost:5001/api/student/getallstudents",
 //         {
 //           method: "GET",
 //           headers: {
@@ -318,7 +318,7 @@
 
 //       console.log("Update Data:", updateData);
 //       const response = await fetch(
-//         `http://localhost:5000/api/student/update-student/${selectedStudent.enrollmentNo}`,
+//         `http://localhost:5001/api/student/update-student/${selectedStudent.enrollmentNo}`,
 //         {
 //           method: "PUT",
 //           headers: {

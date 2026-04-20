@@ -31,7 +31,7 @@ const StudentDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       // Fetch student-specific dashboard data
-      const response = await fetch('http://localhost:5000/api/student/dashboard', {
+      const response = await fetch('http://localhost:5001/api/student/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

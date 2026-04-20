@@ -11,6 +11,10 @@ const {
 } = require("../utils/passwordUtils");
 const { parseCSV, processBulkStudentUpload } = require("../utils/csvUtils");
 const fs = require("fs");
+const {
+  buildFeeCollectionFromStructure,
+  normalizeClassName,
+} = require("../utils/feeStructureUtils");
 
 // module.exports.createStudent = async (req, res) => {
 //   const { error, value } = studentSchema.validate(req.body, {
@@ -214,10 +218,13 @@ module.exports.createStudent = async (req, res) => {
     const randomPassword = generateRandomPassword();
     const hashedPassword = await hashPassword(randomPassword);
 
+    const enrollmentNo = scholarNumber;
+
     // Save student
     const newStudent = new Student({
       studentId,
       scholarNumber,
+      enrollmentNo,
       password: hashedPassword,
       firstName,
       middleName,
@@ -275,37 +282,34 @@ module.exports.createStudent = async (req, res) => {
 
     // Auto-assign fee collection if fee structure exists for class/year
     try {
+      const normalizedClassName = normalizeClassName(className);
       const feeStructure = await FeeStructure.findOne({
         academicYear,
-        class: className,
+        class: normalizedClassName,
         isActive: true,
       });
       if (feeStructure) {
         const existing = await FeeCollection.findOne({ studentId: savedStudent._id, academicYear });
         if (!existing) {
-          const now = new Date();
-          const totalAmount = feeStructure.feeComponents.reduce((sum, c) => {
-            let mult = 1;
-            if (c.frequency === 'MONTHLY') mult = 12;
-            else if (c.frequency === 'QUARTERLY') mult = 4;
-            return sum + (c.amount * mult);
-          }, 0);
+          const evaluated = buildFeeCollectionFromStructure(feeStructure, savedStudent, new Date());
           const newFeeCollection = new FeeCollection({
             receiptNumber: "RCPT" + Date.now(),
             studentId: savedStudent._id,
             academicYear,
             term: 'ANNUAL',
-            feeComponents: feeStructure.feeComponents.map(c => ({
-              componentName: c.componentName,
-              amount: c.amount,
-              dueDate: new Date(now.getFullYear(), now.getMonth(), c.dueDate),
-              isPaid: false,
-            })),
-            totalAmount,
+            feeProfileType: evaluated.feeProfileType,
+            feeComponents: evaluated.feeComponents,
+            totalAmount: evaluated.totalAmount,
             paidAmount: 0,
-            pendingAmount: totalAmount,
+            pendingAmount: evaluated.totalAmount,
+            structureSnapshot: {
+              feeStructureId: feeStructure._id,
+              className: feeStructure.class,
+              annualTotals: feeStructure.annualTotals,
+              monthlyRecurringFee: feeStructure.monthlyRecurringFee,
+            },
             paymentStatus: 'PENDING',
-            dueDate: new Date(now.getFullYear(), now.getMonth(), 15),
+            dueDate: evaluated.dueDate,
             isActive: true,
           });
           await newFeeCollection.save();
@@ -319,28 +323,32 @@ module.exports.createStudent = async (req, res) => {
     try {
       const existsCollection = await FeeCollection.findOne({ studentId: savedStudent._id, academicYear });
       if (!existsCollection) {
-        const feeStructure = await FeeStructure.findOne({ academicYear, class: className, isActive: true });
+        const feeStructure = await FeeStructure.findOne({
+          academicYear,
+          class: normalizeClassName(className),
+          isActive: true,
+        });
         if (!feeStructure) {
           console.warn("Fee structure not found for student", scholarNumber);
         } else {
-          const now = new Date();
-          const feeComponents = feeStructure.feeComponents.map((component) => ({
-            componentName: component.componentName,
-            amount: component.amount,
-            dueDate: new Date(now.getFullYear(), now.getMonth(), component.dueDate || 15),
-            isPaid: false,
-          }));
-          const totalAmount = feeComponents.reduce((sum, fc) => sum + fc.amount, 0);
+          const evaluated = buildFeeCollectionFromStructure(feeStructure, savedStudent, new Date());
           const newFeeCollection = new FeeCollection({
             receiptNumber: "RCPT" + Date.now(),
             studentId: savedStudent._id,
             academicYear,
-            feeComponents,
-            totalAmount,
+            feeProfileType: evaluated.feeProfileType,
+            feeComponents: evaluated.feeComponents,
+            totalAmount: evaluated.totalAmount,
             paidAmount: 0,
-            pendingAmount: totalAmount,
+            pendingAmount: evaluated.totalAmount,
+            structureSnapshot: {
+              feeStructureId: feeStructure._id,
+              className: feeStructure.class,
+              annualTotals: feeStructure.annualTotals,
+              monthlyRecurringFee: feeStructure.monthlyRecurringFee,
+            },
             paymentStatus: "PENDING",
-            dueDate: new Date(now.getFullYear(), now.getMonth(), 15),
+            dueDate: evaluated.dueDate,
           });
           await newFeeCollection.save();
           console.log("FeeCollection created for student:", scholarNumber);
@@ -588,33 +596,30 @@ module.exports.bulkUploadStudents = async (req, res) => {
         // Generate fee collection
         const feeStructure = await FeeStructure.findOne({
           academicYear: studentData.data.academicYear,
-          class: studentData.data.className,
+          class: normalizeClassName(studentData.data.className),
           isActive: true,
         });
 
         if (feeStructure) {
-          const feeComponents = feeStructure.feeComponents.map((component) => ({
-            componentName: component.componentName,
-            amount: component.amount,
-            dueDate: new Date(),
-            isPaid: false,
-          }));
-
-          const totalAmount = feeComponents.reduce(
-            (sum, fc) => sum + fc.amount,
-            0
-          );
+          const evaluated = buildFeeCollectionFromStructure(feeStructure, savedStudent, new Date());
 
           const newFeeCollection = new FeeCollection({
             receiptNumber: "RCPT" + Date.now(),
             studentId: savedStudent._id,
             academicYear: studentData.data.academicYear,
-            feeComponents,
-            totalAmount,
+            feeProfileType: evaluated.feeProfileType,
+            feeComponents: evaluated.feeComponents,
+            totalAmount: evaluated.totalAmount,
             paidAmount: 0,
-            pendingAmount: totalAmount,
+            pendingAmount: evaluated.totalAmount,
+            structureSnapshot: {
+              feeStructureId: feeStructure._id,
+              className: feeStructure.class,
+              annualTotals: feeStructure.annualTotals,
+              monthlyRecurringFee: feeStructure.monthlyRecurringFee,
+            },
             paymentStatus: "PENDING",
-            dueDate: new Date(),
+            dueDate: evaluated.dueDate,
           });
 
           await newFeeCollection.save();

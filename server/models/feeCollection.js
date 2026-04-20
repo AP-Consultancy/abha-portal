@@ -9,9 +9,22 @@ const feeCollectionSchema = new mongoose.Schema({
   },
   academicYear: String,
   term: { type: String },
+  feeProfileType: {
+    type: String,
+    enum: ["NEW", "EXISTING"],
+    default: "EXISTING",
+  },
   feeComponents: [
     {
       componentName: String,
+      category: String,
+      frequency: String,
+      monthsApplicable: Number,
+      quartersApplicable: Number,
+      halfYearsApplicable: Number,
+      applicableFor: String,
+      description: String,
+      baseAmount: Number,
       amount: Number,
       dueDate: Date,
       isPaid: { type: Boolean, default: false },
@@ -22,6 +35,18 @@ const feeCollectionSchema = new mongoose.Schema({
   totalAmount: Number,
   paidAmount: { type: Number, default: 0 },
   pendingAmount: Number,
+  structureSnapshot: {
+    feeStructureId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FeeStructure",
+    },
+    className: String,
+    annualTotals: {
+      newStudent: Number,
+      existingStudent: Number,
+    },
+    monthlyRecurringFee: Number,
+  },
   paymentStatus: {
     type: String,
     enum: ["PENDING", "PARTIAL", "PAID", "OVERDUE"],

@@ -28,4 +28,22 @@ export const feeService = {
       throw new Error("Failed to update late fees. Please try again.");
     }
   },
+
+  async upsertFeeStructure(payload) {
+    try {
+      return await apiService.post(`${API_ENDPOINTS.FEES}/structure`, payload);
+    } catch (error) {
+      console.error("Error saving fee structure:", error);
+      throw new Error("Failed to save fee structure. Please try again.");
+    }
+  },
+
+  async assignFeesToClass(payload) {
+    try {
+      return await apiService.post(`${API_ENDPOINTS.FEES}/assign`, payload);
+    } catch (error) {
+      console.error("Error assigning fees:", error);
+      throw new Error("Failed to assign fees. Please try again.");
+    }
+  },
 };

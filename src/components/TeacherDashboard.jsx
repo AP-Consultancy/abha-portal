@@ -30,7 +30,7 @@ const TeacherDashboard = () => {
       const token = localStorage.getItem("token");
       // Fetch teacher-specific dashboard data
       const response = await fetch(
-        "http://localhost:5000/api/teachers/dashboard",
+        "http://localhost:5001/api/teachers/dashboard",
         {
           headers: {
             Authorization: `Bearer ${token}`,

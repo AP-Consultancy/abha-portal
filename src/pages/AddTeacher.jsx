@@ -133,7 +133,7 @@ export default function TeacherRegistrationForm() {
 
       // Simulate API call - replace with actual API endpoint
       const response = await fetch(
-        "http://localhost:5000/api/teachers/create-teacher",
+        "http://localhost:5001/api/teachers/create-teacher",
         {
           method: "POST",
           headers: {

@@ -5,6 +5,22 @@ import { feeService } from '../services/feeService';
 import { CurrencyDollarIcon, CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import PaymentButton from './PaymentButton/PaymentButton';
 
+const currencyFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  minimumFractionDigits: 0,
+});
+
+const formatCurrency = (amount) => currencyFormatter.format(Number(amount || 0));
+const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-IN') : 'N/A';
+const getFrequencyLabel = (frequency) => ({
+  MONTHLY: 'Monthly',
+  QUARTERLY: 'Quarterly',
+  HALF_YEARLY: 'Half Yearly',
+  ANNUALLY: 'Yearly',
+  ONE_TIME: 'One Time',
+}[frequency] || frequency || 'N/A');
+
 const RoleAwareFees = () => {
   const { getUserRole, user } = useAuth();
   const userRole = getUserRole();
@@ -96,16 +112,15 @@ const RoleAwareFees = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Fee Summary */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Fee Summary</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <div className="flex items-center">
                     <CurrencyDollarIcon className="h-8 w-8 text-blue-600 mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Total Fee</p>
-                      <p className="text-xl font-bold text-blue-600">₹{feeData.summary?.totalFee || 0}</p>
+                      <p className="text-xl font-bold text-blue-600">{formatCurrency(feeData.summary?.totalFee || 0)}</p>
                     </div>
                   </div>
                 </div>
@@ -115,7 +130,7 @@ const RoleAwareFees = () => {
                     <CheckCircleIcon className="h-8 w-8 text-green-600 mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Paid</p>
-                      <p className="text-xl font-bold text-green-600">₹{feeData.summary?.totalPaid || 0}</p>
+                      <p className="text-xl font-bold text-green-600">{formatCurrency(feeData.summary?.totalPaid || 0)}</p>
                     </div>
                   </div>
                 </div>
@@ -125,7 +140,7 @@ const RoleAwareFees = () => {
                     <ClockIcon className="h-8 w-8 text-yellow-600 mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Pending</p>
-                      <p className="text-xl font-bold text-yellow-600">₹{feeData.summary?.totalPending || 0}</p>
+                      <p className="text-xl font-bold text-yellow-600">{formatCurrency(feeData.summary?.totalPending || 0)}</p>
                     </div>
                   </div>
                 </div>
@@ -135,138 +150,181 @@ const RoleAwareFees = () => {
                     <XCircleIcon className="h-8 w-8 text-red-600 mr-3" />
                     <div>
                       <p className="text-sm text-gray-500">Late Fee</p>
-                      <p className="text-xl font-bold text-red-600">₹{feeData.summary?.totalLateFee || 0}</p>
+                      <p className="text-xl font-bold text-red-600">{formatCurrency(feeData.summary?.totalLateFee || 0)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-indigo-50 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <CalendarIcon className="h-8 w-8 text-indigo-600 mr-3" />
+                    <div>
+                      <p className="text-sm text-gray-500">Total Due</p>
+                      <p className="text-xl font-bold text-indigo-600">{formatCurrency(feeData.summary?.totalDue || 0)}</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Fee Structure */}
-            {feeData.feeStructure && (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Fee Structure</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Fee Structure</h2>
+                  <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                    {feeData.structureBreakdown?.feeProfileType || 'N/A'}
+                  </span>
+                </div>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Component
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Amount
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Frequency
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Due Date
-                        </th>
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-gray-500 border-b">
+                        <th className="py-2 pr-3">Component</th>
+                        <th className="py-2 pr-3">Cycle</th>
+                        <th className="py-2 pr-3">Base</th>
+                        <th className="py-2 pr-3">Annual</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {feeData.feeStructure.feeComponents.map((component, index) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {component.componentName}
+                    <tbody>
+                      {(feeData.structureBreakdown?.components || []).filter((component) => component.isApplicable).map((component) => (
+                        <tr key={`${component.componentName}-${component.frequency}`} className="border-b border-gray-100">
+                          <td className="py-2 pr-3">
+                            <div className="font-medium text-gray-900">{component.componentName}</div>
+                            <div className="text-xs text-gray-500">{component.category}</div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ₹{component.amount}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {component.frequency}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {component.dueDate}th of month
-                          </td>
+                          <td className="py-2 pr-3">{getFrequencyLabel(component.frequency)}</td>
+                          <td className="py-2 pr-3">{formatCurrency(component.baseAmount)}</td>
+                          <td className="py-2 pr-3 font-medium">{formatCurrency(component.annualAmount)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-            )}
 
-            {/* Fee Collections */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Cycle-wise Ledger</h2>
+                <div className="space-y-3">
+                  {(feeData.periodLedger || []).map((period) => (
+                    <div key={period.frequency} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900">{getFrequencyLabel(period.frequency)}</div>
+                          <div className="text-xs text-gray-500">{period.componentCount} billed item(s)</div>
+                        </div>
+                        <div className="text-right text-sm">
+                          <div>Total: {formatCurrency(period.billedAmount)}</div>
+                          <div className="text-green-600">Paid: {formatCurrency(period.paidAmount)}</div>
+                          <div className="text-red-600">Pending: {formatCurrency(period.pendingAmount)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Component-wise Status</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b">
+                      <th className="py-2 pr-3">Component</th>
+                      <th className="py-2 pr-3">Cycle</th>
+                      <th className="py-2 pr-3">Billed</th>
+                      <th className="py-2 pr-3">Paid</th>
+                      <th className="py-2 pr-3">Pending</th>
+                      <th className="py-2 pr-3">Latest Due</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(feeData.componentLedger || []).map((component) => (
+                      <tr key={`${component.componentName}-${component.frequency}`} className="border-b border-gray-100">
+                        <td className="py-2 pr-3">
+                          <div className="font-medium text-gray-900">{component.componentName}</div>
+                          <div className="text-xs text-gray-500">{component.category}</div>
+                        </td>
+                        <td className="py-2 pr-3">{getFrequencyLabel(component.frequency)}</td>
+                        <td className="py-2 pr-3">{formatCurrency(component.billedAmount)}</td>
+                        <td className="py-2 pr-3 text-green-600">{formatCurrency(component.paidAmount)}</td>
+                        <td className="py-2 pr-3 text-red-600">{formatCurrency(component.pendingAmount)}</td>
+                        <td className="py-2 pr-3">{formatDate(component.latestDueDate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             {feeData.feeCollections && feeData.feeCollections.length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Fee Collections</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Receipt No
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Due Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Total Amount
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Paid Amount
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Pending
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3" />
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {feeData.feeCollections.map((collection) => (
-                        <tr key={collection._id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {collection.receiptNumber}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(collection.dueDate).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ₹{collection.totalAmount}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ₹{collection.paidAmount}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ₹{collection.pendingAmount}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              collection.paymentStatus === 'PAID' 
-                                ? 'bg-green-100 text-green-800'
-                                : collection.paymentStatus === 'PENDING'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {collection.paymentStatus}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                            {collection.paymentStatus !== 'PAID' && (
-                              <PaymentButton
-                                amount={(collection.pendingAmount || 0) + (collection.lateFee || 0)}
-                                feeCollection={collection}
-                                student={feeData.student}
-                                onPaymentSuccess={async () => {
-                                  try {
-                                    const studentId = feeData.student._id;
-                                    const refreshed = await feeService.getFeeDetails(studentId);
-                                    setFeeData(refreshed);
-                                  } catch (e) {
-                                    console.error('Failed to refresh fee data after payment', e);
-                                  }
-                                }}
-                              />
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-4">
+                  {feeData.feeCollections.map((collection) => (
+                    <div key={collection._id} className="rounded-lg border border-gray-200 p-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                        <div>
+                          <div className="font-semibold text-gray-900">{collection.receiptNumber}</div>
+                          <div className="text-sm text-gray-500">Due {formatDate(collection.dueDate)} • {collection.term || 'FEE'}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            collection.paymentStatus === 'PAID'
+                              ? 'bg-green-100 text-green-800'
+                              : collection.paymentStatus === 'PARTIAL'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : collection.paymentStatus === 'OVERDUE'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {collection.paymentStatus}
+                          </span>
+                          {collection.paymentStatus !== 'PAID' && (
+                            <PaymentButton
+                              amount={(collection.pendingAmount || 0) + (collection.lateFee || 0)}
+                              feeCollection={collection}
+                              student={feeData.student}
+                              onPaymentSuccess={async () => {
+                                try {
+                                  const studentId = feeData.student._id;
+                                  const refreshed = await feeService.getFeeDetails(studentId);
+                                  setFeeData(refreshed);
+                                } catch (e) {
+                                  console.error('Failed to refresh fee data after payment', e);
+                                }
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm mb-4">
+                        <div>Total: {formatCurrency(collection.totalAmount)}</div>
+                        <div className="text-green-600">Paid: {formatCurrency(collection.paidAmount)}</div>
+                        <div className="text-red-600">Pending: {formatCurrency(collection.pendingAmount)}</div>
+                        <div className="text-orange-600">Late Fee: {formatCurrency(collection.lateFee)}</div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {(collection.feeComponents || []).map((component, index) => {
+                          const componentPaid = component.paidAmount || 0;
+                          const componentPending = Math.max(0, (component.amount || 0) - componentPaid);
+                          return (
+                            <div key={`${component.componentName}-${index}`} className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-gray-900">{component.componentName}</div>
+                                <div className="text-xs text-gray-500">{getFrequencyLabel(component.frequency)}</div>
+                              </div>
+                              <div className="mt-2 space-y-1">
+                                <div>Total: {formatCurrency(component.amount)}</div>
+                                <div className="text-green-600">Paid: {formatCurrency(componentPaid)}</div>
+                                <div className="text-red-600">Pending: {formatCurrency(componentPending)}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

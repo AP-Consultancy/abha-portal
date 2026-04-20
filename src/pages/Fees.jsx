@@ -5,13 +5,46 @@ import { paymentService } from '../services/paymentService';
 import { studentService } from '../services/studentService';
 import { API_BASE_URL } from '../utils/constants';
 
+const createEmptyFeeComponent = () => ({
+  componentName: '',
+  category: 'GENERAL',
+  amount: '',
+  newStudentAmount: '',
+  existingStudentAmount: '',
+  frequency: 'ANNUALLY',
+  monthsApplicable: 12,
+  quartersApplicable: 4,
+  halfYearsApplicable: 2,
+  dueDate: 15,
+  applicableFor: 'ALL',
+  isOptional: false,
+  description: '',
+});
+
+const getDefaultAcademicYear = () => '2026-2027';
+const currencyFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  minimumFractionDigits: 0,
+});
+
+const formatCurrency = (amount) => currencyFormatter.format(Number(amount || 0));
+const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-IN') : 'N/A';
+const getFrequencyLabel = (frequency) => ({
+  MONTHLY: 'Monthly',
+  QUARTERLY: 'Quarterly',
+  HALF_YEARLY: 'Half Yearly',
+  ANNUALLY: 'Yearly',
+  ONE_TIME: 'One Time',
+}[frequency] || frequency || 'N/A');
+
 const Fees = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [feeRecords, setFeeRecords] = useState([]);
-  const [structureForm, setStructureForm] = useState({ academicYear: '2025-2026', className: '', components: [{ componentName: '', amount: '', frequency: 'ANNUALLY', dueDate: 15, isOptional: false, description: '' }] });
-  const [assignForm, setAssignForm] = useState({ academicYear: '2025-2026', className: '' });
+  const [structureForm, setStructureForm] = useState({ academicYear: getDefaultAcademicYear(), className: '', components: [createEmptyFeeComponent()] });
+  const [assignForm, setAssignForm] = useState({ academicYear: getDefaultAcademicYear(), className: '' });
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -89,8 +122,9 @@ const Fees = () => {
         body: formData,
       });
       if (!res.ok) throw new Error('Upload failed');
-      await res.json();
-      alert('Fee structure CSV uploaded successfully');
+      const data = await res.json();
+      const syncedStudents = (data.assignments || []).reduce((sum, item) => sum + (item.assigned || 0) + (item.updated || 0), 0);
+      alert(`Fee structure CSV uploaded successfully. Synced ${syncedStudents} student fee record(s).`);
     } catch (e) {
       console.error(e);
       alert('Upload failed');
@@ -173,23 +207,20 @@ const Fees = () => {
 
       alert(`Payment marked successfully! Amount: ₹${data.summary?.paymentAmount || 'Full'}`);
       
-      // Reset form
+      if (markPaid.studentId) {
+        const refreshed = await feeService.getFeeDetails(markPaid.studentId);
+        setSearchedStudent(refreshed);
+        const cols = (refreshed.feeCollections || []).filter(c => c.paymentStatus !== 'PAID');
+        setMarkPaidCollections(cols);
+      }
+
       setMarkPaid({ 
-        studentId: '', 
+        studentId: markPaid.studentId, 
         feeCollectionId: '', 
         amount: '', 
         paymentMethod: 'CASH',
         receiptNumber: ''
       });
-      setMarkPaidCollections([]);
-      setSearchedStudent(null);
-      
-      // Refresh fee collections if student is still selected
-      if (markPaid.studentId) {
-        const res = await feeService.getFeeDetails(markPaid.studentId);
-        const cols = (res.feeCollections || []).filter(c => c.paymentStatus !== 'PAID');
-        setMarkPaidCollections(cols);
-      }
       
     } catch (error) {
       console.error('Error marking as paid:', error);
@@ -204,16 +235,24 @@ const Fees = () => {
         className: structureForm.className,
         feeComponents: structureForm.components.map(c => ({
           componentName: c.componentName,
+          category: c.category,
           amount: Number(c.amount || 0),
+          newStudentAmount: c.newStudentAmount === '' ? undefined : Number(c.newStudentAmount),
+          existingStudentAmount: c.existingStudentAmount === '' ? undefined : Number(c.existingStudentAmount),
           frequency: c.frequency,
-          dueDate: Number(c.dueday || 15),
+          monthsApplicable: Number(c.monthsApplicable || 12),
+          quartersApplicable: Number(c.quartersApplicable || 4),
+          halfYearsApplicable: Number(c.halfYearsApplicable || 2),
+          dueDate: Number(c.dueDate || 15),
+          applicableFor: c.applicableFor,
           isOptional: c.isOptional,
           description: c.description || ''
         }))
       };
       const res = await feeService.upsertFeeStructure(payload);
-      alert('Fee structure saved successfully');
-      setStructureForm({ academicYear: '2025-2026', className: '', components: [{ componentName: '', amount: '', frequency: 'ANNUALLY', dueDate: 15, isOptional: false, description: '' }] });
+      const syncResult = res.syncResult || {};
+      alert(`Fee structure saved. Created ${syncResult.assigned || 0}, updated ${syncResult.updated || 0}, skipped ${syncResult.skippedWithPayments || 0} paid record(s).`);
+      setStructureForm({ academicYear: getDefaultAcademicYear(), className: '', components: [createEmptyFeeComponent()] });
     } catch (e) {
       console.error(e);
       alert('Failed to save fee structure');
@@ -223,8 +262,8 @@ const Fees = () => {
   const handleAssignFees = async () => {
     try {
       const res = await feeService.assignFeesToClass(assignForm);
-      alert(`Fees assigned to ${assignForm.className} successfully`);
-      setAssignForm({ academicYear: '2025-2026', className: '' });
+      alert(`Fees synchronized for ${assignForm.className}. Created ${res.assigned || 0}, updated ${res.updated || 0}, skipped ${res.skippedWithPayments || 0} paid record(s).`);
+      setAssignForm({ academicYear: getDefaultAcademicYear(), className: '' });
     } catch (e) {
       console.error(e);
       alert('Failed to assign fees');
@@ -263,6 +302,17 @@ const Fees = () => {
     const matchesStatus = selectedStatus === 'all' || record.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+
+  const updateStructureComponent = (index, updates) => {
+    setStructureForm((prev) => ({
+      ...prev,
+      components: prev.components.map((component, componentIndex) =>
+        componentIndex === index ? { ...component, ...updates } : component
+      ),
+    }));
+  };
+
+  const selectedCollection = markPaidCollections.find((collection) => collection._id === markPaid.feeCollectionId);
 
   return (
     <div className="space-y-6">
@@ -368,7 +418,8 @@ const Fees = () => {
                 
                 {/* Display searched student information */}
                 {searchedStudent && (
-                  <div className="mt-6 p-4 bg-white rounded-lg border border-blue-200">
+                  <div className="mt-6 space-y-4">
+                    <div className="p-4 bg-white rounded-lg border border-blue-200">
                     <div className="flex items-center justify-between mb-4">
                       <h4 className="font-semibold text-blue-900 flex items-center">
                         <UserIcon className="h-5 w-5 mr-2" />
@@ -398,34 +449,132 @@ const Fees = () => {
                         <span className="text-gray-600">Academic Year:</span>
                         <div className="font-medium">{searchedStudent.student.academicYear}</div>
                       </div>
+                      <div>
+                        <span className="text-gray-600">Fee Profile:</span>
+                        <div className="font-medium">{searchedStudent.structureBreakdown?.feeProfileType || 'N/A'}</div>
+                      </div>
                     </div>
                     
-                    {/* Fee Summary */}
                     <div className="mt-4 pt-4 border-t border-blue-200">
                       <h5 className="font-medium text-blue-900 mb-3">Fee Summary</h5>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <span className="text-gray-600 block text-xs">Total Fee</span>
-                          <div className="font-semibold text-lg">₹{searchedStudent.summary.totalFee}</div>
+                          <div className="font-semibold text-lg">{formatCurrency(searchedStudent.summary.totalFee)}</div>
                         </div>
                         <div className="bg-green-50 p-3 rounded-lg">
                           <span className="text-gray-600 block text-xs">Paid</span>
-                          <div className="font-semibold text-lg text-green-600">₹{searchedStudent.summary.totalPaid}</div>
+                          <div className="font-semibold text-lg text-green-600">{formatCurrency(searchedStudent.summary.totalPaid)}</div>
                         </div>
                         <div className="bg-red-50 p-3 rounded-lg">
                           <span className="text-gray-600 block text-xs">Pending</span>
-                          <div className="font-semibold text-lg text-red-600">₹{searchedStudent.summary.totalPending}</div>
+                          <div className="font-semibold text-lg text-red-600">{formatCurrency(searchedStudent.summary.totalPending)}</div>
                         </div>
                         <div className="bg-orange-50 p-3 rounded-lg">
                           <span className="text-gray-600 block text-xs">Late Fee</span>
-                          <div className="font-semibold text-lg text-orange-600">₹{searchedStudent.summary.totalLateFee}</div>
+                          <div className="font-semibold text-lg text-orange-600">{formatCurrency(searchedStudent.summary.totalLateFee)}</div>
                         </div>
                         <div className="bg-red-50 p-3 rounded-lg">
                           <span className="text-gray-600 block text-xs">Total Due</span>
-                          <div className="font-semibold text-lg text-red-600">₹{searchedStudent.summary.totalDue}</div>
+                          <div className="font-semibold text-lg text-red-600">{formatCurrency(searchedStudent.summary.totalDue)}</div>
                         </div>
                       </div>
                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg border border-gray-200 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="font-semibold text-gray-900">Structure Breakdown</h5>
+                        <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                          {searchedStudent.structureBreakdown?.feeProfileType || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-gray-500 border-b">
+                              <th className="py-2 pr-3">Head</th>
+                              <th className="py-2 pr-3">Cycle</th>
+                              <th className="py-2 pr-3">Base</th>
+                              <th className="py-2 pr-3">Annual</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(searchedStudent.structureBreakdown?.components || []).filter((component) => component.isApplicable).map((component) => (
+                              <tr key={`${component.componentName}-${component.frequency}`} className="border-b border-gray-100">
+                                <td className="py-2 pr-3">
+                                  <div className="font-medium text-gray-900">{component.componentName}</div>
+                                  <div className="text-xs text-gray-500">{component.category}</div>
+                                </td>
+                                <td className="py-2 pr-3">{getFrequencyLabel(component.frequency)}</td>
+                                <td className="py-2 pr-3">{formatCurrency(component.baseAmount)}</td>
+                                <td className="py-2 pr-3 font-medium">{formatCurrency(component.annualAmount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg border border-gray-200 p-4">
+                      <h5 className="font-semibold text-gray-900 mb-3">Cycle-wise Totals</h5>
+                      <div className="space-y-3">
+                        {(searchedStudent.periodLedger || []).length > 0 ? (
+                          searchedStudent.periodLedger.map((period) => (
+                            <div key={period.frequency} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-gray-900">{getFrequencyLabel(period.frequency)}</div>
+                                  <div className="text-xs text-gray-500">{period.componentCount} billed item(s)</div>
+                                </div>
+                                <div className="text-right text-sm">
+                                  <div>Total: {formatCurrency(period.billedAmount)}</div>
+                                  <div className="text-green-600">Paid: {formatCurrency(period.paidAmount)}</div>
+                                  <div className="text-red-600">Pending: {formatCurrency(period.pendingAmount)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500">No cycle-wise ledger available yet.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <h5 className="font-semibold text-gray-900 mb-3">Component Ledger</h5>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-gray-500 border-b">
+                            <th className="py-2 pr-3">Component</th>
+                            <th className="py-2 pr-3">Cycle</th>
+                            <th className="py-2 pr-3">Billed</th>
+                            <th className="py-2 pr-3">Paid</th>
+                            <th className="py-2 pr-3">Pending</th>
+                            <th className="py-2 pr-3">Latest Due</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(searchedStudent.componentLedger || []).map((component) => (
+                            <tr key={`${component.componentName}-${component.frequency}`} className="border-b border-gray-100">
+                              <td className="py-2 pr-3">
+                                <div className="font-medium text-gray-900">{component.componentName}</div>
+                                <div className="text-xs text-gray-500">{component.category}</div>
+                              </td>
+                              <td className="py-2 pr-3">{getFrequencyLabel(component.frequency)}</td>
+                              <td className="py-2 pr-3">{formatCurrency(component.billedAmount)}</td>
+                              <td className="py-2 pr-3 text-green-600">{formatCurrency(component.paidAmount)}</td>
+                              <td className="py-2 pr-3 text-red-600">{formatCurrency(component.pendingAmount)}</td>
+                              <td className="py-2 pr-3">{formatDate(component.latestDueDate)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                   </div>
                 )}
               </div>
@@ -474,10 +623,7 @@ const Fees = () => {
                 </div>
 
                 {/* Fee Summary Display */}
-                {markPaid.feeCollectionId && (() => {
-                  const selectedCollection = markPaidCollections.find(c => c._id === markPaid.feeCollectionId);
-                  if (!selectedCollection) return null;
-                  
+                {selectedCollection && (() => {
                   const totalPending = (selectedCollection.pendingAmount || 0) + (selectedCollection.lateFee || 0);
                   const totalAmount = selectedCollection.totalAmount || 0;
                   const paidAmount = selectedCollection.paidAmount || 0;
@@ -488,15 +634,15 @@ const Fees = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <span className="text-gray-600">Total Fee:</span>
-                          <div className="font-medium">₹{totalAmount}</div>
+                          <div className="font-medium">{formatCurrency(totalAmount)}</div>
                         </div>
                         <div>
                           <span className="text-gray-600">Paid Amount:</span>
-                          <div className="font-medium text-green-600">₹{paidAmount}</div>
+                          <div className="font-medium text-green-600">{formatCurrency(paidAmount)}</div>
                         </div>
                         <div>
                           <span className="text-gray-600">Pending Amount:</span>
-                          <div className="font-medium text-red-600">₹{totalPending}</div>
+                          <div className="font-medium text-red-600">{formatCurrency(totalPending)}</div>
                         </div>
                         <div>
                           <span className="text-gray-600">Payment Status:</span>
@@ -508,6 +654,28 @@ const Fees = () => {
                           }`}>
                             {selectedCollection.paymentStatus}
                           </div>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <h5 className="text-sm font-semibold text-gray-800 mb-2">Collection Components</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {(selectedCollection.feeComponents || []).map((component, index) => {
+                            const componentPaid = component.paidAmount || 0;
+                            const componentPending = Math.max(0, (component.amount || 0) - componentPaid);
+                            return (
+                              <div key={`${component.componentName}-${index}`} className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+                                <div className="flex items-center justify-between">
+                                  <div className="font-medium text-gray-900">{component.componentName}</div>
+                                  <div className="text-xs text-gray-500">{getFrequencyLabel(component.frequency)}</div>
+                                </div>
+                                <div className="mt-2 space-y-1 text-gray-600">
+                                  <div>Total: {formatCurrency(component.amount)}</div>
+                                  <div className="text-green-600">Paid: {formatCurrency(componentPaid)}</div>
+                                  <div className="text-red-600">Pending: {formatCurrency(componentPending)}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -530,7 +698,7 @@ const Fees = () => {
                         const selectedCollection = markPaidCollections.find(c => c._id === markPaid.feeCollectionId);
                         if (!selectedCollection) return '';
                         const totalPending = (selectedCollection.pendingAmount || 0) + (selectedCollection.lateFee || 0);
-                        return `Maximum: ₹${totalPending}`;
+                        return `Maximum: ${formatCurrency(totalPending)}`;
                       })()}
                     </p>
                   </div>
@@ -587,6 +755,9 @@ const Fees = () => {
               {/* Create Fee Structure */}
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Create Fee Structure</h3>
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Use this for class-wise ERP fee rules. You can keep one common amount, or set separate amounts for `New` and `Existing` students where the fee chart differs.
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
@@ -600,23 +771,134 @@ const Fees = () => {
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Fee Components</label>
                   {structureForm.components.map((component, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2">
-                      <input type="text" placeholder="Component name" value={component.componentName} onChange={(e)=>setStructureForm({...structureForm, components: structureForm.components.map((c, i) => i === index ? {...c, componentName: e.target.value} : c)})} className="border border-gray-300 rounded-lg px-3 py-2" />
-                      <input type="number" placeholder="Amount" value={component.amount} onChange={(e)=>setStructureForm({...structureForm, components: structureForm.components.map((c, i) => i === index ? {...c, amount: e.target.value} : c)})} className="border border-gray-300 rounded-lg px-3 py-2" />
-                      <select value={component.frequency} onChange={(e)=>setStructureForm({...structureForm, components: structureForm.components.map((c, i) => i === index ? {...c, frequency: e.target.value} : c)})} className="border border-gray-300 rounded-lg px-3 py-2">
-                        <option value="MONTHLY">Monthly</option>
-                        <option value="QUARTERLY">Quarterly</option>
-                        <option value="ANNUALLY">Annually</option>
-                        <option value="ONE_TIME">One Time</option>
-                      </select>
-                      <input type="number" placeholder="Due day" value={component.dueDate} onChange={(e)=>setStructureForm({...structureForm, components: structureForm.components.map((c, i) => i === index ? {...c, dueDate: e.target.value} : c)})} className="border border-gray-300 rounded-lg px-3 py-2" />
-                      <label className="flex items-center">
-                        <input type="checkbox" checked={component.isOptional} onChange={(e)=>setStructureForm({...structureForm, components: structureForm.components.map((c, i) => i === index ? {...c, isOptional: e.target.checked} : c)})} className="mr-2" />
-                        Optional
-                      </label>
+                    <div key={index} className="mb-3 rounded-xl border border-gray-200 p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                        <input
+                          type="text"
+                          placeholder="Component name"
+                          value={component.componentName}
+                          onChange={(e)=>updateStructureComponent(index, { componentName: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                        <select
+                          value={component.category}
+                          onChange={(e)=>updateStructureComponent(index, { category: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        >
+                          <option value="GENERAL">General</option>
+                          <option value="ADMISSION">Admission</option>
+                          <option value="ACADEMIC">Academic</option>
+                          <option value="FACILITY">Facility</option>
+                          <option value="ACTIVITY">Activity</option>
+                        </select>
+                        <select
+                          value={component.applicableFor}
+                          onChange={(e)=>updateStructureComponent(index, { applicableFor: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        >
+                          <option value="ALL">All Students</option>
+                          <option value="NEW">New Students Only</option>
+                          <option value="EXISTING">Existing Students Only</option>
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-3">
+                        <input
+                          type="number"
+                          placeholder="Common amount"
+                          value={component.amount}
+                          onChange={(e)=>updateStructureComponent(index, { amount: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                        <input
+                          type="number"
+                          placeholder="New student amount"
+                          value={component.newStudentAmount}
+                          onChange={(e)=>updateStructureComponent(index, { newStudentAmount: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Existing student amount"
+                          value={component.existingStudentAmount}
+                          onChange={(e)=>updateStructureComponent(index, { existingStudentAmount: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                        <select
+                          value={component.frequency}
+                          onChange={(e)=>updateStructureComponent(index, { frequency: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        >
+                          <option value="MONTHLY">Monthly</option>
+                          <option value="QUARTERLY">Quarterly</option>
+                          <option value="HALF_YEARLY">Half Yearly</option>
+                          <option value="ANNUALLY">Annually</option>
+                          <option value="ONE_TIME">One Time</option>
+                        </select>
+                        <input
+                          type="number"
+                          min="1"
+                          max="12"
+                          placeholder="Months applicable"
+                          value={component.monthsApplicable}
+                          onChange={(e)=>updateStructureComponent(index, { monthsApplicable: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          max="4"
+                          placeholder="Quarter count"
+                          value={component.quartersApplicable}
+                          onChange={(e)=>updateStructureComponent(index, { quartersApplicable: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input
+                          type="number"
+                          min="1"
+                          max="2"
+                          placeholder="Half-year count"
+                          value={component.halfYearsApplicable}
+                          onChange={(e)=>updateStructureComponent(index, { halfYearsApplicable: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          max="31"
+                          placeholder="Due day"
+                          value={component.dueDate}
+                          onChange={(e)=>updateStructureComponent(index, { dueDate: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Description"
+                          value={component.description}
+                          onChange={(e)=>updateStructureComponent(index, { description: e.target.value })}
+                          className="border border-gray-300 rounded-lg px-3 py-2"
+                        />
+                        <label className="flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={component.isOptional}
+                            onChange={(e)=>updateStructureComponent(index, { isOptional: e.target.checked })}
+                            className="mr-2"
+                          />
+                          Optional component
+                        </label>
+                      </div>
                     </div>
                   ))}
-                  <button onClick={()=>setStructureForm({...structureForm, components: [...structureForm.components, {componentName: '', amount: '', frequency: 'ANNUALLY', dueDate: 15, isOptional: false, description: ''}]})} className="text-blue-600 hover:text-blue-800 text-sm">+ Add Component</button>
+                  <button
+                    onClick={()=>setStructureForm({...structureForm, components: [...structureForm.components, createEmptyFeeComponent()]})}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    + Add Component
+                  </button>
                 </div>
                 <button onClick={handleSaveStructure} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Fee Structure</button>
               </div>
@@ -644,7 +926,10 @@ const Fees = () => {
             <div className="space-y-6">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Bulk Upload Fee Structure</h3>
-                <p className="text-gray-600 mb-4">Upload a CSV file to create fee structures for multiple classes at once.</p>
+                <p className="text-gray-600 mb-2">Upload a CSV file to create fee structures for multiple classes at once.</p>
+                <p className="text-sm text-gray-500 mb-4">
+                  Supported columns: `Academic Year`, `Class`, `Component Name`, `Category`, `Amount`, `New Student Amount`, `Existing Student Amount`, `Frequency`, `Months Applicable`, `Quarters Applicable`, `Half Years Applicable`, `Due Day`, `Applicable For`, `Description`.
+                </p>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <ArrowUpTrayIcon className="mx-auto h-12 w-12 text-gray-400" />
                   <div className="mt-4">

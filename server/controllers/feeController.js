@@ -5,6 +5,44 @@ const FeeCollection = require("../models/feeCollection");
 const mongoose = require("mongoose");
 const { parseCSV } = require("../utils/csvUtils");
 const fs = require("fs");
+const {
+  buildFeeCollectionFromStructure,
+  buildFeeStructureSummary,
+  buildStudentFeeDashboard,
+  normalizeClassName,
+  normalizeFeeComponent,
+  normalizeFrequency,
+  toNumber,
+} = require("../utils/feeStructureUtils");
+
+function buildFeeDetailsPayload(student, feeStructure, feeCollections) {
+  const dashboard = buildStudentFeeDashboard({ student, feeStructure, feeCollections });
+  const totalFee = feeCollections.reduce((sum, fee) => sum + (fee.totalAmount || 0), 0);
+  const totalPaid = feeCollections.reduce((sum, fee) => sum + (fee.paidAmount || 0), 0);
+  const totalPending = feeCollections.reduce((sum, fee) => sum + (fee.pendingAmount || 0), 0);
+  const totalLateFee = feeCollections.reduce((sum, fee) => sum + (fee.lateFee || 0), 0);
+
+  return {
+    student,
+    feeStructure,
+    feeCollections,
+    structureBreakdown: {
+      feeProfileType: dashboard.feeProfileType,
+      totals: dashboard.structureTotals,
+      components: dashboard.structureComponents,
+    },
+    componentLedger: dashboard.componentLedger,
+    periodLedger: dashboard.periodLedger,
+    overdueCollections: dashboard.overdueCollections,
+    summary: {
+      totalFee,
+      totalPaid,
+      totalPending,
+      totalLateFee,
+      totalDue: totalPending + totalLateFee,
+    },
+  };
+}
 
 exports.getFeeDetails = async (req, res) => {
   try {
@@ -17,9 +55,10 @@ exports.getFeeDetails = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
+    const normalizedClassName = normalizeClassName(student.className);
     const feeStructure = await FeeStructure.findOne({
       academicYear: student.academicYear,
-      class: student.className,
+      class: normalizedClassName,
       isActive: true,
     });
     // console.log(feeStructure, "feeStructure  ------------------");
@@ -35,37 +74,7 @@ exports.getFeeDetails = async (req, res) => {
       isActive: true,
     }).sort({ dueDate: 1 });
 
-    // console.log(feeCollections, "feeCollections  ------------------");
-
-    // Calculate summary
-    const totalFee = feeCollections.reduce(
-      (sum, fee) => sum + fee.totalAmount,
-      0
-    );
-    const totalPaid = feeCollections.reduce(
-      (sum, fee) => sum + fee.paidAmount,
-      0
-    );
-    const totalPending = feeCollections.reduce(
-      (sum, fee) => sum + fee.pendingAmount,
-      0
-    );
-    const totalLateFee = feeCollections.reduce(
-      (sum, fee) => sum + fee.lateFee,
-      0
-    );
-
-    res.json({
-      student,
-      feeStructure,
-      feeCollections,
-      summary: {
-        totalFee,
-        totalPaid,
-        totalPending,
-        totalLateFee,
-      },
-    });
+    res.json(buildFeeDetailsPayload(student, feeStructure, feeCollections));
   } catch (error) {
     res
       .status(500)
@@ -75,52 +84,75 @@ exports.getFeeDetails = async (req, res) => {
 
 // Internal helper: assign active fee structure to all students in class/year
 async function assignFeesForClass(academicYear, className, session) {
-  let fsQuery = FeeStructure.findOne({ academicYear, class: className, isActive: true });
+  const normalizedClassName = normalizeClassName(className);
+  let fsQuery = FeeStructure.findOne({ academicYear, class: normalizedClassName, isActive: true });
   if (session) fsQuery = fsQuery.session(session);
   const feeStructure = await fsQuery;
-  if (!feeStructure) return { assigned: 0 };
+  if (!feeStructure) return { assigned: 0, updated: 0, skippedWithPayments: 0 };
 
-  let studentsQuery = Student.find({ className, academicYear });
+  let studentsQuery = Student.find({ academicYear });
   if (session) studentsQuery = studentsQuery.session(session);
-  const students = await studentsQuery;
+  const students = (await studentsQuery).filter(
+    (student) => normalizeClassName(student.className) === normalizedClassName
+  );
   const now = new Date();
   let assigned = 0;
+  let updated = 0;
+  let skippedWithPayments = 0;
   for (const student of students) {
-    let existingQuery = FeeCollection.findOne({ studentId: student._id, academicYear });
-    if (session) existingQuery = existingQuery.session(session);
-    const existing = await existingQuery;
-    if (existing) continue;
-    const totalAmount = feeStructure.feeComponents.reduce((sum, c) => {
-      let multiplier = 1;
-      switch (c.frequency) {
-        case 'MONTHLY': multiplier = 12; break;
-        case 'QUARTERLY': multiplier = 4; break;
-        case 'ANNUALLY': multiplier = 1; break;
-        default: multiplier = 1;
-      }
-      return sum + (c.amount * multiplier);
-    }, 0);
-    await FeeCollection.create([{
-      receiptNumber: `RCPT${Date.now()}${Math.floor(Math.random()*1000)}`,
+    let existingQuery = FeeCollection.findOne({
       studentId: student._id,
       academicYear,
-      term: 'ANNUAL',
-      feeComponents: feeStructure.feeComponents.map(c => ({
-        componentName: c.componentName,
-        amount: c.amount,
-        dueDate: new Date(now.getFullYear(), now.getMonth(), c.dueDate),
-        isPaid: false,
-      })),
-      totalAmount,
-      paidAmount: 0,
-      pendingAmount: totalAmount,
-      paymentStatus: 'PENDING',
-      dueDate: new Date(now.getFullYear(), now.getMonth(), 15),
-      isActive: true,
-    }], session ? { session } : undefined);
-    assigned++;
+      $or: [{ term: 'ANNUAL' }, { term: { $exists: false } }, { term: null }],
+    });
+    if (session) existingQuery = existingQuery.session(session);
+    const existing = await existingQuery;
+    const evaluated = buildFeeCollectionFromStructure(feeStructure, student, now);
+    const snapshot = {
+      feeStructureId: feeStructure._id,
+      className: feeStructure.class,
+      annualTotals: feeStructure.annualTotals,
+      monthlyRecurringFee: feeStructure.monthlyRecurringFee,
+    };
+
+    if (!existing) {
+      await FeeCollection.create([{
+        receiptNumber: `RCPT${Date.now()}${Math.floor(Math.random()*1000)}`,
+        studentId: student._id,
+        academicYear,
+        term: 'ANNUAL',
+        feeProfileType: evaluated.feeProfileType,
+        feeComponents: evaluated.feeComponents,
+        totalAmount: evaluated.totalAmount,
+        paidAmount: 0,
+        pendingAmount: evaluated.totalAmount,
+        structureSnapshot: snapshot,
+        paymentStatus: 'PENDING',
+        dueDate: evaluated.dueDate,
+        isActive: true,
+      }], session ? { session } : undefined);
+      assigned++;
+      continue;
+    }
+
+    if ((existing.paidAmount || 0) > 0 || (existing.paymentHistory || []).length > 0) {
+      skippedWithPayments++;
+      continue;
+    }
+
+    existing.feeProfileType = evaluated.feeProfileType;
+    existing.feeComponents = evaluated.feeComponents;
+    existing.totalAmount = evaluated.totalAmount;
+    existing.paidAmount = 0;
+    existing.pendingAmount = evaluated.totalAmount;
+    existing.structureSnapshot = snapshot;
+    existing.paymentStatus = 'PENDING';
+    existing.dueDate = evaluated.dueDate;
+    existing.lateFee = 0;
+    await existing.save(session ? { session } : undefined);
+    updated++;
   }
-  return { assigned };
+  return { assigned, updated, skippedWithPayments };
 }
 
 // Admin: create or update fee structure per class/year
@@ -130,22 +162,33 @@ exports.upsertFeeStructure = async (req, res) => {
     if (!academicYear || !className || !Array.isArray(feeComponents) || feeComponents.length === 0) {
       return res.status(400).json({ message: "academicYear, className, and feeComponents are required" });
     }
-    const mapped = feeComponents.map(c => ({
-      componentName: c.componentName,
-      amount: Number(c.amount),
-      frequency: c.frequency,
-      dueDate: Number(c.dueDate),
-      isOptional: Boolean(c.isOptional),
-      description: c.description || '',
-    }));
+    const normalizedClass = normalizeClassName(className);
+    const mapped = feeComponents.map((component) => normalizeFeeComponent(component));
+    const summary = buildFeeStructureSummary(mapped);
     const doc = await FeeStructure.findOneAndUpdate(
-      { academicYear, class: className },
-      { academicYear, class: className, feeComponents: mapped, isActive },
+      { academicYear, class: normalizedClass },
+      {
+        academicYear,
+        class: normalizedClass,
+        classDisplayName: className,
+        feeComponents: mapped,
+        annualTotals: {
+          newStudent: summary.newStudentTotal,
+          existingStudent: summary.existingStudentTotal,
+        },
+        monthlyRecurringFee: summary.monthlyRecurringFee,
+        totalAnnualFee: Math.max(summary.newStudentTotal, summary.existingStudentTotal),
+        isActive,
+      },
       { new: true, upsert: true, runValidators: true }
     );
     // Auto-assign to existing students of the class/year
-    const { assigned } = await assignFeesForClass(academicYear, className);
-    return res.json({ message: "Fee structure saved and fees auto-assigned", autoAssigned: assigned, feeStructure: doc });
+    const syncResult = await assignFeesForClass(academicYear, normalizedClass);
+    return res.json({
+      message: "Fee structure saved and student fee collections synchronized",
+      syncResult,
+      feeStructure: doc,
+    });
   } catch (error) {
     return res.status(500).json({ message: "Error saving fee structure", error: error.message });
   }
@@ -160,9 +203,10 @@ exports.assignFeesToClass = async (req, res) => {
     if (!academicYear || !className) {
       return res.status(400).json({ message: "academicYear and className are required" });
     }
-    const { assigned } = await assignFeesForClass(academicYear, className, session);
+    const normalizedClass = normalizeClassName(className);
+    const syncResult = await assignFeesForClass(academicYear, normalizedClass, session);
     await session.commitTransaction();
-    return res.json({ message: `Fees assigned to class ${className}`, assigned });
+    return res.json({ message: `Fees synchronized for class ${normalizedClass}`, ...syncResult });
   } catch (error) {
     await session.abortTransaction();
     return res.status(500).json({ message: "Error assigning fees", error: error.message });
@@ -179,7 +223,7 @@ exports.bulkUploadFeeStructure = async (req, res) => {
     }
 
     const rows = await parseCSV(req.file.path);
-    const required = ["academicyear", "class", "componentname", "amount", "frequency", "dueday"]; 
+    const required = ["academicyear", "class", "componentname"];
 
     // normalize and group
     const sanitize = (s) => String(s || "").trim();
@@ -197,17 +241,31 @@ exports.bulkUploadFeeStructure = async (req, res) => {
         continue; // skip invalid rows silently (or collect errors if needed)
       }
       const year = r.academicyear;
-      const cls = r.class;
+      const cls = normalizeClassName(r.class);
       const key = `${year}|${cls}`;
       const arr = groupMap.get(key) || [];
-      arr.push({
+      const hasBaseAmount = r.amount !== "";
+      const hasNewAmount = r.newstudentamount !== "";
+      const hasExistingAmount = r.existingstudentamount !== "";
+      if (!hasBaseAmount && !hasNewAmount && !hasExistingAmount) {
+        continue;
+      }
+
+      arr.push(normalizeFeeComponent({
         componentName: r.componentname,
-        amount: Number(r.amount) || 0,
-        frequency: (r.frequency || "ANNUALLY").toUpperCase(),
-        dueDate: Number(r.dueday) || 1,
+        category: r.category,
+        amount: hasBaseAmount ? r.amount : (r.newstudentamount || r.existingstudentamount || 0),
+        newStudentAmount: hasNewAmount ? r.newstudentamount : undefined,
+        existingStudentAmount: hasExistingAmount ? r.existingstudentamount : undefined,
+        frequency: normalizeFrequency(r.frequency || "ANNUALLY"),
+        monthsApplicable: r.monthsapplicable || 12,
+        quartersApplicable: r.quartersapplicable || 4,
+        halfYearsApplicable: r.halfyearsapplicable || 2,
+        dueDate: r.dueday || 15,
+        applicableFor: r.applicablefor || "ALL",
         isOptional: r.isoptional === "true" || r.isoptional === "1",
         description: r.description || "",
-      });
+      }));
       groupMap.set(key, arr);
     }
 
@@ -215,18 +273,31 @@ exports.bulkUploadFeeStructure = async (req, res) => {
     const assignments = [];
     for (const [key, components] of groupMap.entries()) {
       const [academicYear, className] = key.split("|");
+      const summary = buildFeeStructureSummary(components);
       await FeeStructure.findOneAndUpdate(
         { academicYear, class: className },
-        { academicYear, class: className, feeComponents: components, isActive: true },
+        {
+          academicYear,
+          class: className,
+          classDisplayName: className,
+          feeComponents: components,
+          annualTotals: {
+            newStudent: summary.newStudentTotal,
+            existingStudent: summary.existingStudentTotal,
+          },
+          monthlyRecurringFee: summary.monthlyRecurringFee,
+          totalAnnualFee: Math.max(summary.newStudentTotal, summary.existingStudentTotal),
+          isActive: true,
+        },
         { upsert: true, new: true, runValidators: true }
       );
-      const { assigned } = await assignFeesForClass(academicYear, className);
-      assignments.push({ academicYear, className, assigned });
+      const syncResult = await assignFeesForClass(academicYear, className);
+      assignments.push({ academicYear, className, ...syncResult });
       upserts++;
     }
 
     try { fs.unlinkSync(req.file.path); } catch (_) {}
-    return res.json({ message: "Bulk fee structure upload completed and fees auto-assigned", updated: upserts, assignments });
+    return res.json({ message: "Bulk fee structure upload completed and student fee collections synchronized", updated: upserts, assignments });
   } catch (error) {
     // cleanup file
     if (req.file && req.file.path) {
@@ -250,17 +321,24 @@ exports.generateFeeCollection = async (req, res) => {
       throw new Error("Student not found");
     }
 
-    const totalAmount = feeComponents.reduce(
-      (sum, component) => sum + component.amount,
-      0
-    );
+    const normalizedComponents = (feeComponents || []).map((component) => ({
+      ...normalizeFeeComponent(component),
+      frequency: normalizeFrequency(component.frequency),
+      monthsApplicable: toNumber(component.monthsApplicable, 12),
+      quartersApplicable: toNumber(component.quartersApplicable, 4),
+      halfYearsApplicable: toNumber(component.halfYearsApplicable, 2),
+      baseAmount: toNumber(component.amount),
+      amount: toNumber(component.amount),
+    }));
+    const totalAmount = normalizedComponents.reduce((sum, component) => sum + component.amount, 0);
 
     const feeCollection = new FeeCollection({
       receiptNumber: `RCPT${Date.now()}${Math.floor(Math.random()*1000)}`,
       studentId,
       academicYear: student.academicYear,
       term,
-      feeComponents: feeComponents.map((comp) => ({
+      feeProfileType: student.feeProfileType || "EXISTING",
+      feeComponents: normalizedComponents.map((comp) => ({
         ...comp,
         dueDate: new Date(comp.dueDate || dueDate),
       })),
@@ -381,25 +459,34 @@ exports.markFeesAsPaid = async (req, res) => {
       newPaymentStatus = 'PARTIAL';
     }
 
-    // Update fee collection
-    const updatedFeeCollection = await FeeCollection.findByIdAndUpdate(
-      feeCollectionId,
-      {
-        paidAmount: newPaidAmount,
-        pendingAmount: newPendingAmount,
-        paymentStatus: newPaymentStatus,
-        $push: {
-          paymentHistory: {
-            amount: paymentAmount,
-            date: new Date(),
-            method: paymentMethod,
-            receiptNumber: receiptNumber || `RCPT${Date.now()}`,
-            collectedBy: req.user?.id || 'admin'
-          }
-        }
-      },
-      { new: true }
-    );
+    let remainingAmount = paymentAmount;
+    for (const component of feeCollection.feeComponents) {
+      const componentPaidAmount = component.paidAmount || 0;
+      const componentPending = Math.max(0, (component.amount || 0) - componentPaidAmount);
+      if (componentPending <= 0 || remainingAmount <= 0) continue;
+
+      const paymentForComponent = Math.min(remainingAmount, componentPending);
+      component.paidAmount = componentPaidAmount + paymentForComponent;
+      component.isPaid = component.paidAmount >= (component.amount || 0);
+      if (component.isPaid) {
+        component.paidDate = new Date();
+      }
+      remainingAmount -= paymentForComponent;
+    }
+
+    feeCollection.paidAmount = newPaidAmount;
+    feeCollection.pendingAmount = newPendingAmount;
+    feeCollection.paymentStatus = newPaymentStatus;
+    feeCollection.paymentHistory.push({
+      amount: paymentAmount,
+      date: new Date(),
+      method: paymentMethod,
+      receiptNumber: receiptNumber || `RCPT${Date.now()}`,
+      collectedBy: req.user?.id || 'admin'
+    });
+
+    await feeCollection.save();
+    const updatedFeeCollection = feeCollection.toObject();
 
     // Create payment transaction record
     try {
@@ -471,9 +558,10 @@ exports.searchStudentByScholarNumber = async (req, res) => {
     }
 
     // Get fee details for the student
+    const normalizedClassName = normalizeClassName(student.className);
     const feeStructure = await FeeStructure.findOne({
       academicYear: student.academicYear,
-      class: student.className,
+      class: normalizedClassName,
       isActive: true,
     });
 
@@ -482,24 +570,7 @@ exports.searchStudentByScholarNumber = async (req, res) => {
       isActive: true,
     }).sort({ dueDate: 1 });
 
-    // Calculate summary
-    const totalFee = feeCollections.reduce((sum, fee) => sum + (fee.totalAmount || 0), 0);
-    const totalPaid = feeCollections.reduce((sum, fee) => sum + (fee.paidAmount || 0), 0);
-    const totalPending = feeCollections.reduce((sum, fee) => sum + (fee.pendingAmount || 0), 0);
-    const totalLateFee = feeCollections.reduce((sum, fee) => sum + (fee.lateFee || 0), 0);
-
-    res.json({
-      student,
-      feeStructure,
-      feeCollections,
-      summary: {
-        totalFee,
-        totalPaid,
-        totalPending,
-        totalLateFee,
-        totalDue: totalPending + totalLateFee
-      }
-    });
+    res.json(buildFeeDetailsPayload(student, feeStructure, feeCollections));
 
   } catch (error) {
     console.error('Error searching student by scholar number:', error);

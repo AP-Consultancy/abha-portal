@@ -31,26 +31,35 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const homeworkRoutes = require("./routes/homeworkRoutes");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5001;
 require("dotenv").config();
 // require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 
 //middlewares
-app.use(helmet());
 app.use(
   cors({
-    origin: ["http://localhost:5174", "http://localhost:5173"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
+// VERY IMPORTANT for preflight
+app.options(/.*/, cors());
+// app.use(helmet());
+// app.use(
+//   cors({
+//     origin: ["http://localhost:5174", "http://localhost:5173"],
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+//     credentials: true,
+//   })
+// );
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  skip: (req) => req.method === "OPTIONS",
   message: "Too many requests from this IP, please try again later.",
 });
-app.use(limiter);
+// app.use(limiter);
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));

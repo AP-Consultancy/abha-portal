@@ -1,47 +1,105 @@
-Academic Year,Class,Component Name,Amount,Frequency,Due Day,isOptional,Description
-2025-2026,Nursery,Tuition,800,MONTHLY,10,false,Monthly tuition fee
-2025-2026,Nursery,Transport,500,MONTHLY,10,true,Optional transport fee
-2025-2026,Nursery,Annual Charges,3000,ANNUALLY,30,false,One-time annual charge
-2025-2026,LKG,Tuition,900,MONTHLY,10,false,Monthly tuition fee
-2025-2026,LKG,Transport,500,MONTHLY,10,true,Optional transport fee
-2025-2026,LKG,Annual Charges,3200,ANNUALLY,30,false,One-time annual charge
-2025-2026,UKG,Tuition,1000,MONTHLY,10,false,Monthly tuition fee
-2025-2026,UKG,Transport,600,MONTHLY,10,true,Optional transport fee
-2025-2026,UKG,Annual Charges,3500,ANNUALLY,30,false,One-time annual charge
-2025-2026,1,Tuition,1100,MONTHLY,10,false,Monthly tuition fee
-2025-2026,1,Transport,600,MONTHLY,10,true,Optional transport fee
-2025-2026,1,Annual Charges,4000,ANNUALLY,30,false,One-time annual charge
-2025-2026,2,Tuition,1200,MONTHLY,10,false,Monthly tuition fee
-2025-2026,2,Transport,700,MONTHLY,10,true,Optional transport fee
-2025-2026,2,Annual Charges,4200,ANNUALLY,30,false,One-time annual charge
-2025-2026,3,Tuition,1300,MONTHLY,10,false,Monthly tuition fee
-2025-2026,3,Transport,700,MONTHLY,10,true,Optional transport fee
-2025-2026,3,Annual Charges,4400,ANNUALLY,30,false,One-time annual charge
-2025-2026,4,Tuition,1400,MONTHLY,10,false,Monthly tuition fee
-2025-2026,4,Transport,800,MONTHLY,10,true,Optional transport fee
-2025-2026,4,Annual Charges,4600,ANNUALLY,30,false,One-time annual charge
-2025-2026,5,Tuition,1500,MONTHLY,10,false,Monthly tuition fee
-2025-2026,5,Transport,800,MONTHLY,10,true,Optional transport fee
-2025-2026,5,Annual Charges,4800,ANNUALLY,30,false,One-time annual charge
-2025-2026,6,Tuition,1600,MONTHLY,10,false,Monthly tuition fee
-2025-2026,6,Transport,900,MONTHLY,10,true,Optional transport fee
-2025-2026,6,Annual Charges,5000,ANNUALLY,30,false,One-time annual charge
-2025-2026,7,Tuition,1700,MONTHLY,10,false,Monthly tuition fee
-2025-2026,7,Transport,900,MONTHLY,10,true,Optional transport fee
-2025-2026,7,Annual Charges,5200,ANNUALLY,30,false,One-time annual charge
-2025-2026,8,Tuition,1800,MONTHLY,10,false,Monthly tuition fee
-2025-2026,8,Transport,1000,MONTHLY,10,true,Optional transport fee
-2025-2026,8,Annual Charges,5400,ANNUALLY,30,false,One-time annual charge
-2025-2026,9,Tuition,1900,MONTHLY,10,false,Monthly tuition fee
-2025-2026,9,Transport,1000,MONTHLY,10,true,Optional transport fee
-2025-2026,9,Annual Charges,5600,ANNUALLY,30,false,One-time annual charge
-2025-2026,10,Tuition,2000,MONTHLY,10,false,Monthly tuition fee
-2025-2026,10,Transport,1100,MONTHLY,10,true,Optional transport fee
-2025-2026,10,Annual Charges,6000,ANNUALLY,30,false,One-time annual charge
-2025-2026,11,Tuition,2200,MONTHLY,10,false,Monthly tuition fee
-2025-2026,11,Transport,1200,MONTHLY,10,true,Optional transport fee
-2025-2026,11,Annual Charges,6500,ANNUALLY,30,false,One-time annual charge
-2025-2026,12,Tuition,2400,MONTHLY,10,false,Monthly tuition fee
-2025-2026,12,Transport,1300,MONTHLY,10,true,Optional transport fee
-2025-2026,12,Annual Charges,7000,ANNUALLY,30,false,One-time annual charge
-
+Academic Year,Class,Component Name,Category,Amount,New Student Amount,Existing Student Amount,Frequency,Months Applicable,Due Day,Applicable For,Description
+2026-2027,Nursery,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,Nursery,Admission Fee,ADMISSION,1500,1500,0,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,Nursery,Tuition Fee,ACADEMIC,863,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,Nursery,Exam Fees,ACADEMIC,900,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,Nursery,Sports/Scout Guide/Redcross,ACTIVITY,80,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,KG1,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,KG1,Admission Fee,ADMISSION,1500,1500,800,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,KG1,Tuition Fee,ACADEMIC,891,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,KG1,Exam Fees,ACADEMIC,900,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,KG1,Computer Fees,FACILITY,100,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,KG1,Sports/Scout Guide/Redcross,ACTIVITY,80,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,KG2,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,KG2,Admission Fee,ADMISSION,1500,1500,800,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,KG2,Tuition Fee,ACADEMIC,929,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,KG2,Exam Fees,ACADEMIC,900,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,KG2,Computer Fees,FACILITY,100,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,KG2,Sports/Scout Guide/Redcross,ACTIVITY,80,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,1,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,1,Admission Fee,ADMISSION,2000,2000,1000,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,1,Tuition Fee,ACADEMIC,1040,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,1,Exam Fees,ACADEMIC,1050,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,1,Computer Fees,FACILITY,150,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,1,Sports/Scout Guide/Redcross,ACTIVITY,80,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,2,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,2,Admission Fee,ADMISSION,2000,2000,1000,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,2,Tuition Fee,ACADEMIC,1072,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,2,Exam Fees,ACADEMIC,1050,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,2,Computer Fees,FACILITY,150,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,2,Sports/Scout Guide/Redcross,ACTIVITY,80,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,3,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,3,Admission Fee,ADMISSION,2000,2000,1000,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,3,Tuition Fee,ACADEMIC,1105,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,3,Exam Fees,ACADEMIC,1050,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,3,Computer Fees,FACILITY,150,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,3,Sports/Scout Guide/Redcross,ACTIVITY,80,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,4,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,4,Admission Fee,ADMISSION,2000,2000,1000,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,4,Tuition Fee,ACADEMIC,1142,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,4,Exam Fees,ACADEMIC,1050,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,4,Computer Fees,FACILITY,150,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,4,Sports/Scout Guide/Redcross,ACTIVITY,80,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,5,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,5,Admission Fee,ADMISSION,2000,2000,1000,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,5,Tuition Fee,ACADEMIC,1193,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,5,Exam Fees,ACADEMIC,1050,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,5,Computer Fees,FACILITY,160,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,5,Sports/Scout Guide/Redcross,ACTIVITY,100,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,5,Library Fees,FACILITY,20,,,MONTHLY,10,10,ALL,Library fee for 10 months
+2026-2027,6,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,6,Admission Fee,ADMISSION,2000,2000,1000,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,6,Tuition Fee,ACADEMIC,1232,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,6,Exam Fees,ACADEMIC,1200,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,6,Computer Fees,FACILITY,160,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,6,Sports/Scout Guide/Redcross,ACTIVITY,100,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,6,Library Fees,FACILITY,20,,,MONTHLY,10,10,ALL,Library fee for 10 months
+2026-2027,6,Lab Fee,FACILITY,40,,,MONTHLY,10,10,ALL,Lab fee for 10 months
+2026-2027,7,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,7,Admission Fee,ADMISSION,2000,2000,1000,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,7,Tuition Fee,ACADEMIC,1265,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,7,Exam Fees,ACADEMIC,1200,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,7,Computer Fees,FACILITY,160,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,7,Sports/Scout Guide/Redcross,ACTIVITY,100,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,7,Library Fees,FACILITY,20,,,MONTHLY,10,10,ALL,Library fee for 10 months
+2026-2027,7,Lab Fee,FACILITY,40,,,MONTHLY,10,10,ALL,Lab fee for 10 months
+2026-2027,8,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,8,Admission Fee,ADMISSION,2000,2000,1000,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,8,Tuition Fee,ACADEMIC,1314,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,8,Exam Fees,ACADEMIC,1200,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,8,Computer Fees,FACILITY,160,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,8,Sports/Scout Guide/Redcross,ACTIVITY,100,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,8,Library Fees,FACILITY,20,,,MONTHLY,10,10,ALL,Library fee for 10 months
+2026-2027,8,Lab Fee,FACILITY,40,,,MONTHLY,10,10,ALL,Lab fee for 10 months
+2026-2027,9,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,9,Admission Fee,ADMISSION,2500,2500,1200,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,9,Tuition Fee,ACADEMIC,1595,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,9,Exam Fees,ACADEMIC,1500,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,9,Computer Fees,FACILITY,190,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,9,Sports/Scout Guide/Redcross,ACTIVITY,100,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,9,Library Fees,FACILITY,60,,,MONTHLY,10,10,ALL,Library fee for 10 months
+2026-2027,9,Lab Fee,FACILITY,80,,,MONTHLY,10,10,ALL,Lab fee for 10 months
+2026-2027,10,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,10,Admission Fee,ADMISSION,2500,2500,1200,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,10,Tuition Fee,ACADEMIC,1724,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,10,Exam Fees,ACADEMIC,1500,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,10,Computer Fees,FACILITY,190,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,10,Sports/Scout Guide/Redcross,ACTIVITY,100,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,10,Library Fees,FACILITY,60,,,MONTHLY,10,10,ALL,Library fee for 10 months
+2026-2027,10,Lab Fee,FACILITY,80,,,MONTHLY,10,10,ALL,Lab fee for 10 months
+2026-2027,11,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,11,Admission Fee,ADMISSION,3000,3000,1500,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,11,Tuition Fee,ACADEMIC,1625,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,11,Exam Fees,ACADEMIC,1800,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,11,Computer Fees,FACILITY,190,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,11,Sports/Scout Guide/Redcross,ACTIVITY,100,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,11,Library Fees,FACILITY,60,,,MONTHLY,10,10,ALL,Library fee for 10 months
+2026-2027,11,Lab Fee,FACILITY,110,,,MONTHLY,10,10,ALL,Lab fee for 10 months
+2026-2027,12,Reg/Form/Prospectus,ADMISSION,200,,,ONE_TIME,1,15,NEW,Registration and prospectus fee
+2026-2027,12,Admission Fee,ADMISSION,3000,3000,1500,ONE_TIME,1,15,ALL,Admission fee differs for new and existing students
+2026-2027,12,Tuition Fee,ACADEMIC,1760,,,MONTHLY,10,10,ALL,Tuition fee for 10 months
+2026-2027,12,Exam Fees,ACADEMIC,1800,,,ANNUALLY,1,20,ALL,Quarterly half-yearly and final exam fee
+2026-2027,12,Computer Fees,FACILITY,200,,,MONTHLY,10,10,ALL,Computer fee for 10 months
+2026-2027,12,Sports/Scout Guide/Redcross,ACTIVITY,100,,,MONTHLY,10,10,ALL,Sports and medical activity fee for 10 months
+2026-2027,12,Library Fees,FACILITY,60,,,MONTHLY,10,10,ALL,Library fee for 10 months
+2026-2027,12,Lab Fee,FACILITY,110,,,MONTHLY,10,10,ALL,Lab fee for 10 months
