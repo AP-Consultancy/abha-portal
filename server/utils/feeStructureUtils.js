@@ -227,6 +227,9 @@ function buildStudentFeeDashboard({ student, feeStructure, feeCollections }) {
       isApplicable: isComponentApplicable(component, feeProfileType),
     };
   });
+  const structureComponentMap = new Map(
+    structureComponents.map((component) => [component.componentName.toLowerCase(), component])
+  );
 
   const structureTotals = structureComponents.reduce(
     (acc, component) => {
@@ -258,16 +261,17 @@ function buildStudentFeeDashboard({ student, feeStructure, feeCollections }) {
     }
 
     for (const component of collection.feeComponents || []) {
-      const componentKey = `${component.componentName}__${component.frequency || "ANNUALLY"}`;
+      const structureMatch = structureComponentMap.get(String(component.componentName || "").toLowerCase());
+      const frequency = normalizeFrequency(component.frequency || structureMatch?.frequency || "ANNUALLY");
+      const componentKey = `${component.componentName}__${frequency}`;
       const paidAmount = toNumber(component.paidAmount);
       const totalAmount = toNumber(component.amount);
       const pendingAmount = Math.max(0, totalAmount - paidAmount);
-      const frequency = normalizeFrequency(component.frequency || "ANNUALLY");
 
       if (!componentLedgerMap.has(componentKey)) {
         componentLedgerMap.set(componentKey, {
           componentName: component.componentName,
-          category: component.category || "GENERAL",
+          category: component.category || structureMatch?.category || "GENERAL",
           frequency,
           billedAmount: 0,
           paidAmount: 0,

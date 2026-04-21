@@ -46,4 +46,13 @@ export const feeService = {
       throw new Error("Failed to assign fees. Please try again.");
     }
   },
+
+  async resetStudentToLatestStructure(scholarNumber) {
+    try {
+      return await apiService.post(`${API_ENDPOINTS.FEES}/reset-student/${encodeURIComponent(scholarNumber)}`, {});
+    } catch (error) {
+      console.error("Error resetting student fee data:", error);
+      throw new Error("Failed to reset student fee data. Please try again.");
+    }
+  },
 };

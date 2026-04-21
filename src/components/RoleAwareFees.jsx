@@ -114,6 +114,15 @@ const RoleAwareFees = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Fee Summary</h2>
+              {feeData.structureContext?.mismatchReason && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <div className="font-semibold mb-1">Fee Structure Notice</div>
+                  <div>{feeData.structureContext.mismatchReason}</div>
+                  <div className="mt-1 text-xs text-amber-700">
+                    Matched year: {feeData.structureContext.matchedAcademicYear || 'None'} | Latest uploaded year: {feeData.structureContext.latestAcademicYear || 'None'}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <div className="flex items-center">

@@ -314,6 +314,33 @@ const Fees = () => {
 
   const selectedCollection = markPaidCollections.find((collection) => collection._id === markPaid.feeCollectionId);
 
+  const handleResetStudentToLatestStructure = async () => {
+    try {
+      const scholarNumber = searchedStudent?.student?.scholarNumber;
+      if (!scholarNumber) return;
+
+      const confirmed = window.confirm(
+        `Reset fee data for ${scholarNumber} to the latest uploaded structure? This will delete old dummy fee collections and test payments for this student.`
+      );
+      if (!confirmed) return;
+
+      const result = await feeService.resetStudentToLatestStructure(scholarNumber);
+      setSearchedStudent(result.feeData);
+      setMarkPaid((prev) => ({
+        ...prev,
+        studentId: result.feeData.student._id,
+        feeCollectionId: '',
+        amount: '',
+        receiptNumber: '',
+      }));
+      setMarkPaidCollections((result.feeData.feeCollections || []).filter((collection) => collection.paymentStatus !== 'PAID'));
+      alert(`Student fee data reset successfully. Removed ${result.deletedCollections || 0} fee collection(s).`);
+    } catch (error) {
+      console.error('Error resetting student fee data:', error);
+      alert(error.message || 'Failed to reset student fee data');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -425,12 +452,20 @@ const Fees = () => {
                         <UserIcon className="h-5 w-5 mr-2" />
                         Student Found
                       </h4>
-                      <button 
-                        onClick={() => setSearchedStudent(null)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        Clear
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleResetStudentToLatestStructure}
+                          className="text-sm rounded-lg bg-amber-600 px-3 py-2 font-medium text-white hover:bg-amber-700"
+                        >
+                          Reset To Latest Structure
+                        </button>
+                        <button 
+                          onClick={() => setSearchedStudent(null)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Clear
+                        </button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
@@ -480,6 +515,16 @@ const Fees = () => {
                         </div>
                       </div>
                     </div>
+
+                    {searchedStudent.structureContext?.mismatchReason && (
+                      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <div className="font-semibold mb-1">Structure Year Mismatch</div>
+                        <div>{searchedStudent.structureContext.mismatchReason}</div>
+                        <div className="mt-1 text-xs text-amber-700">
+                          Matched year: {searchedStudent.structureContext.matchedAcademicYear || 'None'} | Latest uploaded year: {searchedStudent.structureContext.latestAcademicYear || 'None'}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

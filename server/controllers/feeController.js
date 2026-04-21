@@ -1,7 +1,7 @@
 const Student = require("../models/studentData");
 const FeeStructure = require("../models/feeStructure");
 const FeeCollection = require("../models/feeCollection");
-// const PaymentTransaction = require("../models/paymentTransaction");
+const PaymentTransaction = require("../models/paymentTransaction");
 const mongoose = require("mongoose");
 const { parseCSV } = require("../utils/csvUtils");
 const fs = require("fs");
@@ -9,13 +9,14 @@ const {
   buildFeeCollectionFromStructure,
   buildFeeStructureSummary,
   buildStudentFeeDashboard,
+  deriveStudentFeeProfile,
   normalizeClassName,
   normalizeFeeComponent,
   normalizeFrequency,
   toNumber,
 } = require("../utils/feeStructureUtils");
 
-function buildFeeDetailsPayload(student, feeStructure, feeCollections) {
+function buildFeeDetailsPayload(student, feeStructure, feeCollections, structureContext = {}) {
   const dashboard = buildStudentFeeDashboard({ student, feeStructure, feeCollections });
   const totalFee = feeCollections.reduce((sum, fee) => sum + (fee.totalAmount || 0), 0);
   const totalPaid = feeCollections.reduce((sum, fee) => sum + (fee.paidAmount || 0), 0);
@@ -25,6 +26,7 @@ function buildFeeDetailsPayload(student, feeStructure, feeCollections) {
   return {
     student,
     feeStructure,
+    structureContext,
     feeCollections,
     structureBreakdown: {
       feeProfileType: dashboard.feeProfileType,
@@ -44,6 +46,124 @@ function buildFeeDetailsPayload(student, feeStructure, feeCollections) {
   };
 }
 
+async function getFeeStructureContext(student) {
+  const normalizedClassName = normalizeClassName(student.className);
+  const matchedStructure = await FeeStructure.findOne({
+    academicYear: student.academicYear,
+    class: normalizedClassName,
+    isActive: true,
+  });
+  const latestStructure = await FeeStructure.findOne({
+    class: normalizedClassName,
+    isActive: true,
+  }).sort({ academicYear: -1, updatedAt: -1 });
+
+  const usesLatestStructure = Boolean(
+    matchedStructure &&
+    latestStructure &&
+    String(matchedStructure._id) === String(latestStructure._id)
+  );
+
+  let mismatchReason = null;
+  if (!matchedStructure && latestStructure) {
+    mismatchReason = `No active fee structure exists for the student's academic year ${student.academicYear}. Latest available is ${latestStructure.academicYear}.`;
+  } else if (matchedStructure && latestStructure && !usesLatestStructure) {
+    mismatchReason = `Student is using ${matchedStructure.academicYear} fee data, while latest uploaded structure for class ${normalizedClassName} is ${latestStructure.academicYear}.`;
+  }
+
+  return {
+    normalizedClassName,
+    matchedStructure,
+    latestStructure,
+    structureContext: {
+      matchedAcademicYear: matchedStructure?.academicYear || null,
+      latestAcademicYear: latestStructure?.academicYear || null,
+      usesLatestStructure,
+      mismatchReason,
+    },
+  };
+}
+
+async function rebuildStudentToLatestStructure(student, session) {
+  const normalizedClassName = normalizeClassName(student.className);
+  let latestQuery = FeeStructure.findOne({
+    class: normalizedClassName,
+    isActive: true,
+  }).sort({ academicYear: -1, updatedAt: -1 });
+  if (session) latestQuery = latestQuery.session(session);
+  const latestStructure = await latestQuery;
+
+  if (!latestStructure) {
+    throw new Error(`No active uploaded fee structure found for class ${normalizedClassName}`);
+  }
+
+  let collectionsQuery = FeeCollection.find({ studentId: student._id, isActive: true });
+  if (session) collectionsQuery = collectionsQuery.session(session);
+  const existingCollections = await collectionsQuery;
+  const existingCollectionIds = existingCollections.map((collection) => collection._id);
+
+  if (existingCollectionIds.length > 0) {
+    let transactionsDelete = PaymentTransaction.deleteMany({
+      $or: [
+        { studentId: student._id },
+        { feeCollectionId: { $in: existingCollectionIds } },
+      ],
+    });
+    if (session) transactionsDelete = transactionsDelete.session(session);
+    await transactionsDelete;
+  } else {
+    let transactionsDelete = PaymentTransaction.deleteMany({ studentId: student._id });
+    if (session) transactionsDelete = transactionsDelete.session(session);
+    await transactionsDelete;
+  }
+
+  let collectionsDelete = FeeCollection.deleteMany({ studentId: student._id });
+  if (session) collectionsDelete = collectionsDelete.session(session);
+  await collectionsDelete;
+
+  student.academicYear = latestStructure.academicYear;
+  student.className = latestStructure.class;
+  student.feeProfileType = deriveStudentFeeProfile({
+    ...student.toObject(),
+    academicYear: latestStructure.academicYear,
+  });
+  await student.save({ session });
+
+  const evaluated = buildFeeCollectionFromStructure(latestStructure, student, new Date());
+  const [newCollection] = await FeeCollection.create([{
+    receiptNumber: `RCPT${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    studentId: student._id,
+    academicYear: latestStructure.academicYear,
+    term: 'ANNUAL',
+    feeProfileType: evaluated.feeProfileType,
+    feeComponents: evaluated.feeComponents,
+    totalAmount: evaluated.totalAmount,
+    paidAmount: 0,
+    pendingAmount: evaluated.totalAmount,
+    structureSnapshot: {
+      feeStructureId: latestStructure._id,
+      className: latestStructure.class,
+      annualTotals: latestStructure.annualTotals,
+      monthlyRecurringFee: latestStructure.monthlyRecurringFee,
+    },
+    paymentStatus: 'PENDING',
+    dueDate: evaluated.dueDate,
+    lateFee: 0,
+    isActive: true,
+    paymentHistory: [],
+  }], session ? { session } : undefined);
+
+  const { structureContext } = await getFeeStructureContext(student);
+  return {
+    student,
+    feeStructure: latestStructure,
+    feeCollections: [newCollection],
+    deletedCollections: existingCollections.length,
+    deletedTransactions: existingCollectionIds.length,
+    structureContext,
+  };
+}
+
 exports.getFeeDetails = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -55,12 +175,7 @@ exports.getFeeDetails = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    const normalizedClassName = normalizeClassName(student.className);
-    const feeStructure = await FeeStructure.findOne({
-      academicYear: student.academicYear,
-      class: normalizedClassName,
-      isActive: true,
-    });
+    const { matchedStructure: feeStructure, structureContext } = await getFeeStructureContext(student);
     // console.log(feeStructure, "feeStructure  ------------------");
 
     if (!feeStructure) {
@@ -74,7 +189,7 @@ exports.getFeeDetails = async (req, res) => {
       isActive: true,
     }).sort({ dueDate: 1 });
 
-    res.json(buildFeeDetailsPayload(student, feeStructure, feeCollections));
+    res.json(buildFeeDetailsPayload(student, feeStructure, feeCollections, structureContext));
   } catch (error) {
     res
       .status(500)
@@ -558,19 +673,14 @@ exports.searchStudentByScholarNumber = async (req, res) => {
     }
 
     // Get fee details for the student
-    const normalizedClassName = normalizeClassName(student.className);
-    const feeStructure = await FeeStructure.findOne({
-      academicYear: student.academicYear,
-      class: normalizedClassName,
-      isActive: true,
-    });
+    const { matchedStructure: feeStructure, structureContext } = await getFeeStructureContext(student);
 
     const feeCollections = await FeeCollection.find({
       studentId: student._id,
       isActive: true,
     }).sort({ dueDate: 1 });
 
-    res.json(buildFeeDetailsPayload(student, feeStructure, feeCollections));
+    res.json(buildFeeDetailsPayload(student, feeStructure, feeCollections, structureContext));
 
   } catch (error) {
     console.error('Error searching student by scholar number:', error);
@@ -578,5 +688,49 @@ exports.searchStudentByScholarNumber = async (req, res) => {
       message: "Error searching student", 
       error: error.message 
     });
+  }
+};
+
+exports.resetStudentToLatestFeeStructure = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { scholarNumber } = req.params;
+    if (!scholarNumber) {
+      return res.status(400).json({ message: "Scholar number is required" });
+    }
+
+    const student = await Student.findOne({
+      scholarNumber: { $regex: `^${scholarNumber}$`, $options: 'i' }
+    }).session(session);
+
+    if (!student) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Student not found with this scholar number" });
+    }
+
+    const resetResult = await rebuildStudentToLatestStructure(student, session);
+    await session.commitTransaction();
+
+    return res.json({
+      message: "Student fee data reset to latest uploaded fee structure",
+      deletedCollections: resetResult.deletedCollections,
+      deletedTransactions: resetResult.deletedTransactions,
+      feeData: buildFeeDetailsPayload(
+        resetResult.student,
+        resetResult.feeStructure,
+        resetResult.feeCollections,
+        resetResult.structureContext
+      ),
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error resetting student fee structure:', error);
+    return res.status(500).json({
+      message: "Error resetting student fee structure",
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
   }
 };

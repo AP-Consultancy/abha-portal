@@ -9,6 +9,7 @@ const {
   bulkUploadFeeStructure,
   markFeesAsPaid,
   searchStudentByScholarNumber,
+  resetStudentToLatestFeeStructure,
 } = require("../controllers/feeController");
 const { authenticateToken, requireAdmin, requireTeacher } = require("../middleware/auth");
 
@@ -36,5 +37,8 @@ router.post("/mark-paid", authenticateToken, requireAdmin, markFeesAsPaid);
 
 // Search student by scholar number
 router.get("/search/scholar/:scholarNumber", authenticateToken, requireAdmin, searchStudentByScholarNumber);
+
+// Admin: reset a student's fee data to the latest uploaded structure for their class
+router.post("/reset-student/:scholarNumber", authenticateToken, requireAdmin, resetStudentToLatestFeeStructure);
 
 module.exports = router;
