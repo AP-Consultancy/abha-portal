@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL } from '../utils/constants';
 import {
   BookOpenIcon,
   CalendarIcon,
@@ -31,7 +32,7 @@ const StudentDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       // Fetch student-specific dashboard data
-      const response = await fetch('http://localhost:5001/api/student/dashboard', {
+      const response = await fetch(`${API_BASE_URL}/api/students/dashboard`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

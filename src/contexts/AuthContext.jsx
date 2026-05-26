@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import apiService from "../services/apiService";
+import { API_ENDPOINTS } from "../utils/constants";
 
 const AuthContext = createContext();
 
@@ -26,39 +28,38 @@ export const AuthProvider = ({ children }) => {
   const login = async (identifier, password, role) => {
     setLoading(true);
     if (!identifier || !password || !role) {
+      setLoading(false);
       throw new Error("All fields are required");
     }
 
     try {
-      const response = await fetch("http://localhost:5001/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(
-          role === "student"
-            ? { identifier, password, role }
-            : { enrollmentNo: identifier, password, role }
-        ),
+      const data = await apiService.post(API_ENDPOINTS.LOGIN, {
+        email: identifier,
+        password,
       });
-      
-      const data = await response.json();
-      console.log(data, "data from login");
-      
-      if (response.ok) {
+
+      if (data.success) {
+        const authData = data.data || data;
         // Store token separately for security
-        if (data.token) {
-          localStorage.setItem("token", data.token);
+        if (authData.token) {
+          localStorage.setItem("token", authData.token);
         }
         
         // Normalize the user data structure
-        const baseUserData = data.student || data.teacher || data.admin || null;
+        const baseUserData =
+          authData.user || data.student || data.teacher || data.admin || null;
+        const resolvedRole = (baseUserData?.role || role || "").toLowerCase();
         const mappedUserData = baseUserData
-          ? { ...baseUserData, _id: baseUserData._id || baseUserData.id }
+          ? {
+              ...baseUserData,
+              _id: baseUserData._id || baseUserData.id,
+              firstName: baseUserData.firstName || baseUserData.first_name,
+              lastName: baseUserData.lastName || baseUserData.last_name,
+            }
           : null;
         const normalizedUser = {
-          ...data,
-          userRole: role.toLowerCase(),
+          ...authData,
+          userRole: resolvedRole,
           userData: mappedUserData,
         };
         

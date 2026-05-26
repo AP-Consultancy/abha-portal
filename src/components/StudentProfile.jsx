@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL, API_ENDPOINTS } from '../utils/constants';
 import {
   UserIcon,
   AcademicCapIcon,
@@ -41,7 +42,7 @@ const StudentProfile = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/student/profile', {
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.STUDENT_PROFILE}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

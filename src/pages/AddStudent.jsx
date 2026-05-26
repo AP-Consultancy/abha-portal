@@ -14,6 +14,8 @@ import {
   TruckIcon,
 } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/constants";
+import { studentService } from "../services/studentService";
 
 const CreateStudent = () => {
   const navigate = useNavigate();
@@ -88,7 +90,7 @@ const CreateStudent = () => {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5001/api/classes", { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API_BASE_URL}/api/classes`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
           const data = await res.json();
           const classes = data.classes || [];
@@ -134,29 +136,11 @@ const CreateStudent = () => {
     console.log("Student Data:", payload);
 
     try {
-      const token = localStorage.getItem("token");
-      
-      const response = await fetch(
-        "http://localhost:5001/api/student/create-student",
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-      console.log("Response:", response);
-      if (!response.ok) {
-        console.log(response.errors);
-        throw new Error("Failed to create student", response.error);
-      }
-      const data = await response.json();
+      const data = await studentService.createStudent(payload);
       console.log("Response Data:", data);
       
       // Show success message with default password information
-      alert(`Student created successfully!\n\nScholar Number: ${data.student.scholarNumber}\nDefault Password: ${data.defaultPassword}\n\nPlease share these credentials with the student.`);
+      alert(`Student created successfully!\n\nScholar Number: ${formData.scholarNumber || "Saved"}\nDefault Password: ${payload.password || formData.scholarNumber || "student@123"}\n\nPlease share these credentials with the student.`);
       
       setIsSubmitted(true);
       navigate("/students");

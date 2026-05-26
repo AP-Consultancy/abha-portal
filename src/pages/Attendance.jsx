@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarIcon, CheckIcon, XMarkIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { attendanceService } from '../services/attendanceService';
-import { classService } from '../services/classService';
+import { studentService } from '../services/studentService';
+import { extractFilterOptions } from '../utils/studentUtils';
+import { useAuth } from '../contexts/AuthContext';
 
 const Attendance = () => {
+  const { user } = useAuth();
   const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [classes, setClasses] = useState([]);
+  const [sections, setSections] = useState([]);
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
+  const [existingAttendance, setExistingAttendance] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -24,13 +30,15 @@ const Attendance = () => {
     if (selectedClass && selectedDate) {
       fetchClassAttendance();
     }
-  }, [selectedClass, selectedDate]);
+  }, [selectedClass, selectedSection, selectedDate]);
 
   const fetchClasses = async () => {
     try {
       setLoading(true);
-      const data = await classService.getAllClasses();
-      setClasses(data.classes || []);
+      const students = await studentService.getAllStudents();
+      const options = extractFilterOptions(students);
+      setClasses(options.classes);
+      if (options.sections) setSections(options.sections);
     } catch (error) {
       console.error('Error fetching classes:', error);
       setMessage('Error loading classes');
@@ -42,17 +50,23 @@ const Attendance = () => {
   const fetchClassAttendance = async () => {
     try {
       setLoading(true);
-      const data = await attendanceService.getClassAttendance(selectedClass, selectedDate);
+      const filters = { classId: selectedClass };
+      if (selectedSection) filters.sectionId = selectedSection;
+      const roster = await studentService.getAllStudents(filters);
+      const data = await attendanceService.getClassAttendance(selectedClass, selectedDate, roster);
       setStudents(data.attendance || []);
       
-      // Create attendance map
       const attendanceMap = {};
+      const existingMap = {};
       data.attendance?.forEach(item => {
+        const sid = item.student._id || item.student.id || item.student.studentId;
         if (item.attendance) {
-          attendanceMap[item.student._id] = item.attendance.status;
+          attendanceMap[sid] = item.attendance.status;
+          existingMap[sid] = item.attendance.id || item.attendance._id;
         }
       });
       setAttendance(attendanceMap);
+      setExistingAttendance(existingMap);
     } catch (error) {
       console.error('Error fetching attendance:', error);
       setMessage('Error loading attendance data');
@@ -71,23 +85,32 @@ const Attendance = () => {
   const saveAttendance = async () => {
     try {
       setSaving(true);
-      const attendanceData = students.map(item => ({
-        studentId: item.student._id,
-        status: attendance[item.student._id] || 'Present',
-        remarks: ''
-      }));
+      const markedBy = user?.userData?._id || user?.userData?.id || null;
+      const attendanceData = students.map(item => {
+        const sid = item.student._id || item.student.id || item.student.studentId;
+        return {
+          studentId: sid,
+          sectionId: item.student.sectionId || item.student.section_id || selectedSection || null,
+          status: attendance[sid] || 'Present',
+          remarks: '',
+          attendanceId: existingAttendance[sid] || null,
+        };
+      });
 
       await attendanceService.markBulkAttendance({
         classId: selectedClass,
+        sectionId: selectedSection || null,
         date: selectedDate,
-        attendanceData
+        attendanceData,
+        markedBy,
       });
 
       setMessage('Attendance saved successfully!');
+      fetchClassAttendance();
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
       console.error('Error saving attendance:', error);
-      setMessage('Error saving attendance');
+      setMessage('Error saving attendance. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -139,7 +162,7 @@ const Attendance = () => {
 
       {/* Class and Date Selection */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Class
@@ -151,12 +174,32 @@ const Attendance = () => {
             >
               <option value="">Choose a class</option>
               {classes.map(cls => (
-                <option key={cls._id} value={cls._id}>
-                  {cls.name} - Section {cls.section}
+                <option key={cls.value} value={cls.value}>
+                  Class {cls.label}
                 </option>
               ))}
             </select>
           </div>
+
+          {sections.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Section
+              </label>
+              <select
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Sections</option>
+                {sections.map(sec => (
+                  <option key={sec.value} value={sec.value}>
+                    Section {sec.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -173,7 +216,7 @@ const Attendance = () => {
             </div>
             {isWeekend(selectedDate) && (
               <p className="text-sm text-orange-600 mt-1">
-                ⚠️ Selected date is a Sunday (weekend)
+                Selected date is a Sunday (weekend)
               </p>
             )}
           </div>
@@ -252,11 +295,14 @@ const Attendance = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {students.map((item, index) => (
-                    <tr key={item.student._id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  {students.map((item, index) => {
+                    const studentId = item.student._id || item.student.id || item.student.studentId;
+                    const studentName = `${item.student.firstName || ""} ${item.student.lastName || ""}`.trim() || item.student.name;
+                    return (
+                    <tr key={studentId} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {item.student.name}
+                          {studentName}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -267,9 +313,9 @@ const Attendance = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
-                          value={attendance[item.student._id] || 'Present'}
-                          onChange={(e) => handleAttendanceChange(item.student._id, e.target.value)}
-                          className={`border rounded-lg px-3 py-2 text-sm font-medium ${getStatusColor(attendance[item.student._id] || 'Present')}`}
+                          value={attendance[studentId] || 'Present'}
+                          onChange={(e) => handleAttendanceChange(studentId, e.target.value)}
+                          className={`border rounded-lg px-3 py-2 text-sm font-medium ${getStatusColor(attendance[studentId] || 'Present')}`}
                         >
                           <option value="Present">Present</option>
                           <option value="Absent">Absent</option>
@@ -278,7 +324,7 @@ const Attendance = () => {
                         </select>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

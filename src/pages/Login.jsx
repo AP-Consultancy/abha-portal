@@ -112,7 +112,7 @@ const Login = () => {
                 htmlFor="identifier"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
-                Scholar Number
+                Email / Scholar Number
               </label>
               <input
                 id="identifier"
@@ -120,7 +120,7 @@ const Login = () => {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Enter scholar number"
+                placeholder="Enter email or scholar number"
                 required
               />
             </div>

@@ -1,9 +1,9 @@
 import React from "react";
-import { PencilIcon, PhoneIcon, EnvelopeIcon, MapPinIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, PhoneIcon, EnvelopeIcon, MapPinIcon, ExclamationTriangleIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { formatDate } from "../../utils/studentUtils";
 import Badge from "../common/Badge";
 
-const StudentTable = ({ students, onEdit }) => {
+const StudentTable = ({ students, onEdit, onDelete }) => {
   if (students.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -49,10 +49,11 @@ const StudentTable = ({ students, onEdit }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {students.map((student, index) => (
               <StudentTableRow
-                key={student._id}
+                key={student._id || student.id || student.enrollmentNo}
                 student={student}
                 index={index}
                 onEdit={onEdit}
+                onDelete={onDelete}
               />
             ))}
           </tbody>
@@ -62,7 +63,7 @@ const StudentTable = ({ students, onEdit }) => {
   );
 };
 
-const StudentTableRow = ({ student, index, onEdit }) => {
+const StudentTableRow = ({ student, index, onEdit, onDelete }) => {
   return (
     <tr
       className={`hover:bg-blue-50 transition-colors duration-200 ${
@@ -159,13 +160,22 @@ const StudentTableRow = ({ student, index, onEdit }) => {
 
       {/* Actions */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <button
-          onClick={() => onEdit(student)}
-          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-        >
-          <PencilIcon className="h-5 w-5 mr-2" />
-          Edit
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onEdit(student)}
+            className="inline-flex items-center px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <PencilIcon className="h-5 w-5 mr-2" />
+            Edit
+          </button>
+          <button
+            onClick={() => onDelete(student)}
+            className="inline-flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <TrashIcon className="h-5 w-5 mr-2" />
+            Delete
+          </button>
+        </div>
       </td>
     </tr>
   );

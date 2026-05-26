@@ -8,6 +8,7 @@ import {
   BriefcaseIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
+import { teacherService } from "../services/teacherService";
 
 export default function TeacherRegistrationForm() {
   const [formData, setFormData] = useState({
@@ -129,29 +130,13 @@ export default function TeacherRegistrationForm() {
     setSubmitMessage("");
     console.log("Form Data:", formData);
     try {
-      const token = localStorage.getItem("token");
+      await teacherService.createTeacher(formData);
+      setSubmitMessage("Teacher registered successfully!");
 
-      // Simulate API call - replace with actual API endpoint
-      const response = await fetch(
-        "http://localhost:5001/api/teachers/create-teacher",
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setSubmitMessage("Teacher registered successfully!");
+      // Show success message with default password information
+      alert(`Teacher registered successfully!\n\nLogin Email: ${formData.email}\nDefault Password: ${formData.email || "teacher@123"}\n\nPlease share these credentials with the teacher.`);
         
-        // Show success message with default password information
-        alert(`Teacher registered successfully!\n\nEnrollment Number: ${data.teacher.enrollmentNo}\nDefault Password: ${data.defaultPassword}\n\nPlease share these credentials with the teacher.`);
-        
-        setFormData({
+      setFormData({
           name: "",
           email: "",
           contact: "",
@@ -169,13 +154,7 @@ export default function TeacherRegistrationForm() {
           department: "",
           joiningDate: "",
           status: "Active",
-        });
-      } else {
-        const errorData = await response.json();
-        setSubmitMessage(
-          `Error: ${errorData.message || "Registration failed"}`
-        );
-      }
+      });
     } catch (error) {
       setSubmitMessage("Network error. Please try again.");
     } finally {

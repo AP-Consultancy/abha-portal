@@ -21,17 +21,25 @@ export const getStatusBadgeClasses = (status) => {
 };
 
 export const extractFilterOptions = (studentsData) => {
-  const classes = [...new Set(studentsData.map((student) => student.className))]
-    .filter(Boolean)
-    .sort();
-  const sections = [...new Set(studentsData.map((student) => student.section))]
-    .filter(Boolean)
-    .sort();
-  const years = [
-    ...new Set(studentsData.map((student) => student.academicYear)),
-  ]
-    .filter(Boolean)
-    .sort();
+  const toOptions = (items, idKey, labelKey) => {
+    const optionMap = new Map();
+
+    items.forEach((student) => {
+      const label = student[labelKey];
+      const value = student[idKey] || label;
+      if (value && label && !optionMap.has(String(value))) {
+        optionMap.set(String(value), { value: String(value), label: String(label) });
+      }
+    });
+
+    return [...optionMap.values()].sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { numeric: true })
+    );
+  };
+
+  const classes = toOptions(studentsData, "classId", "className");
+  const sections = toOptions(studentsData, "sectionId", "section");
+  const years = toOptions(studentsData, "academicYearId", "academicYear");
 
   return { classes, sections, years };
 };
@@ -44,21 +52,25 @@ export const filterStudents = (students, filters) => {
   // Apply class filter
   if (selectedClass) {
     filtered = filtered.filter(
-      (student) => student.className === selectedClass
+      (student) =>
+        String(student.classId || student.className) === String(selectedClass)
     );
   }
 
   // Apply section filter
   if (selectedSection) {
     filtered = filtered.filter(
-      (student) => student.section === selectedSection
+      (student) =>
+        String(student.sectionId || student.section) === String(selectedSection)
     );
   }
 
   // Apply year filter
   if (selectedYear) {
     filtered = filtered.filter(
-      (student) => student.academicYear === selectedYear
+      (student) =>
+        String(student.academicYearId || student.academicYear) ===
+        String(selectedYear)
     );
   }
 

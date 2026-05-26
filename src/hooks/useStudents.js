@@ -12,19 +12,24 @@ export const useStudents = () => {
     years: [],
   });
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (filters = {}) => {
     try {
       setLoading(true);
       setError(null);
-      const studentsData = await studentService.getAllStudents();
+      const studentsData = await studentService.getAllStudents(filters);
       setStudents(studentsData);
 
       const options = extractFilterOptions(studentsData);
-      setFilterOptions({
-        classes: options.classes,
-        sections: options.sections,
-        years: options.years,
-      });
+      const hasServerFilters =
+        filters.classId || filters.sectionId || filters.academicYearId;
+
+      if (!hasServerFilters || filterOptions.classes.length === 0) {
+        setFilterOptions({
+          classes: options.classes,
+          sections: options.sections,
+          years: options.years,
+        });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -43,6 +48,16 @@ export const useStudents = () => {
     }
   };
 
+  const deleteStudent = async (student) => {
+    try {
+      await studentService.deleteStudent(student);
+      await fetchStudents();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
   }, []);
@@ -54,5 +69,6 @@ export const useStudents = () => {
     filterOptions,
     fetchStudents,
     updateStudent,
+    deleteStudent,
   };
 };

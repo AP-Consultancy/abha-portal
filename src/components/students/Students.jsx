@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useStudents } from "../../hooks/useStudents";
 import { useStudentFilters } from "../../hooks/useStudentFilters";
 import { transformStudentForEdit } from "../../utils/studentUtils";
@@ -22,6 +22,7 @@ const Students = () => {
     filterOptions,
     fetchStudents,
     updateStudent,
+    deleteStudent,
   } = useStudents();
 
   const {
@@ -38,6 +39,14 @@ const Students = () => {
     clearIndividualFilter,
     hasActiveFilters,
   } = useStudentFilters(students);
+
+  useEffect(() => {
+    fetchStudents({
+      classId: selectedClass,
+      sectionId: selectedSection,
+      academicYearId: selectedYear,
+    });
+  }, [selectedClass, selectedSection, selectedYear]);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -169,6 +178,20 @@ const Students = () => {
     }
   };
 
+  const handleDelete = async (student) => {
+    const name = `${student.firstName || ""} ${student.lastName || ""}`.trim();
+    const confirmed = window.confirm(
+      `Delete ${name || student.enrollmentNo || "this student"}? This cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    const result = await deleteStudent(student);
+    if (!result.success) {
+      alert(`Failed to delete student: ${result.error}`);
+    }
+  };
+
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedStudent(null);
@@ -265,7 +288,11 @@ const Students = () => {
         </div>
 
         {/* Table */}
-        <StudentTable students={filteredStudents} onEdit={handleEdit} />
+        <StudentTable
+          students={filteredStudents}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
 
         {/* Footer */}
         <div className="mt-6 bg-white rounded-lg shadow-lg p-4">

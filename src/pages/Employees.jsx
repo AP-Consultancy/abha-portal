@@ -344,8 +344,9 @@ const Teachers = () => {
   const getAllTeachers = async () => {
     try {
       const data = await teacherService.getAllTeachers();
-      setTeachers(data.teachers || []);
-      setFilteredTeachers(data.teachers || []);
+      const teachers = data.teachers || data.data || [];
+      setTeachers(teachers);
+      setFilteredTeachers(teachers);
     } catch (err) {
       console.error("Error fetching teachers:", err);
     }
@@ -461,7 +462,13 @@ const Teachers = () => {
     if (!selectedTeacher) return;
     setIsUpdating(true);
     try {
-      await teacherService.updateTeacher(selectedTeacher.enrollmentNo, formData);
+      await teacherService.updateTeacher(selectedTeacher.enrollmentNo, {
+        ...formData,
+        id: selectedTeacher.id,
+        teacherId: selectedTeacher.teacherId,
+        userId: selectedTeacher.userId,
+        enrollmentNo: selectedTeacher.enrollmentNo,
+      });
 
       setUpdateSuccess(true);
       setTimeout(() => {

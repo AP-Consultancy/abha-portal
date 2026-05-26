@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { teacherService } from "../services/teacherService";
 import {
   UsersIcon,
   BookOpenIcon,
@@ -23,26 +24,17 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
-      const token = localStorage.getItem("token");
-      // Fetch teacher-specific dashboard data
-      const response = await fetch(
-        "http://localhost:5001/api/teachers/dashboard",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setDashboardData(data);
-      }
+      if (!user) return;
+      const teacher = await teacherService.getTeacherProfile(user);
+      setDashboardData((prev) => ({
+        ...prev,
+        assignedClasses: teacher?.assignedClasses || [],
+        assignedSubjects: teacher?.assignedSubjects || [],
+      }));
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {

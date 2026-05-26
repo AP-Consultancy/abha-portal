@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { teacherService } from '../services/teacherService';
 import {
   UserIcon,
   AcademicCapIcon,
@@ -20,24 +21,15 @@ const TeacherProfile = () => {
 
   useEffect(() => {
     fetchTeacherProfile();
-  }, []);
+  }, [user]);
 
   const fetchTeacherProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5001/api/teachers/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setTeacherData(data.teacher);
-        setAssignedClasses(data.assignedClasses || []);
-        setAssignedSubjects(data.assignedSubjects || []);
-      }
+      if (!user) return;
+      const teacher = await teacherService.getTeacherProfile(user);
+      setTeacherData(teacher);
+      setAssignedClasses(teacher?.assignedClasses || []);
+      setAssignedSubjects(teacher?.assignedSubjects || []);
     } catch (error) {
       console.error('Error fetching teacher profile:', error);
     } finally {

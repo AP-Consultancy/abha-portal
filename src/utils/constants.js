@@ -97,25 +97,30 @@ export const INITIAL_FORM_DATA = {
   remarks: "",
 };
 
-export const API_BASE_URL = "http://localhost:5001";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export const API_ENDPOINTS = {
-  GET_ALL_STUDENTS: "/api/student/getallstudents",
-  UPDATE_STUDENT: (enrollmentNo) =>
-    `/api/student/update-student/${enrollmentNo}`,
+  GET_ALL_STUDENTS: "/api/students",
+  STUDENT_REPORT: "/api/students/report",
+  MANAGE_STUDENT: "/api/students/manage",
+  UPDATE_STUDENT: () => "/api/students/manage",
+  DELETE_STUDENT: () => "/api/students/manage",
   // Auth endpoints
   LOGIN: "/api/auth/login",
   // Student endpoints
-  STUDENT_PROFILE: "/api/student/profile",
-  STUDENT_CHANGE_PASSWORD: "/api/student/change-password",
-  STUDENT_BULK_UPLOAD: "/api/student/bulk-upload",
+  STUDENT_PROFILE: "/api/students/profile",
+  STUDENT_CHANGE_PASSWORD: "/api/students/change-password",
+  STUDENT_BULK_UPLOAD: "/api/students/bulk-upload",
   // Teacher endpoints
-  TEACHER_PROFILE: "/api/teachers/profile",
-  TEACHER_CHANGE_PASSWORD: "/api/teachers/change-password",
-  TEACHER_RESIGNATION_STATUS: (enrollmentNo) => `/api/teachers/${enrollmentNo}/resignation-status`,
+  TEACHERS: "/api/teachers",
+  MANAGE_TEACHER: "/api/teachers/manage",
   // Admin endpoints
   ADMIN_PROFILE: "/api/admin/profile",
   ADMIN_DASHBOARD: "/api/admin/dashboard",
+  // Attendance endpoints
+  ATTENDANCE: "/api/attendance",
+  MANAGE_ATTENDANCE: "/api/attendance/manage",
   // Fee endpoints
   FEES: "/api/fees",
   PAYMENTS: "/api/payments",

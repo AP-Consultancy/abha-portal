@@ -46,7 +46,14 @@ const StudentModal = ({
   const handleSubmit = async () => {
     if (!selectedStudent) return;
 
-    const updateData = transformFormDataForUpdate(formData);
+    const updateData = {
+      ...transformFormDataForUpdate(formData),
+      id: selectedStudent.id,
+      studentId: selectedStudent.studentId,
+      userId: selectedStudent.userId,
+      enrollmentNo: selectedStudent.enrollmentNo,
+      scholarNumber: selectedStudent.scholarNumber,
+    };
     await onUpdate(selectedStudent.enrollmentNo, updateData);
   };
 

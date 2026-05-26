@@ -18,6 +18,9 @@ const StudentFilters = ({
   clearIndividualFilter,
   hasActiveFilters,
 }) => {
+  const getOptionLabel = (options, value) =>
+    options.find((option) => option.value === value)?.label || value;
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -32,9 +35,9 @@ const StudentFilters = ({
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Classes</option>
-            {availableClasses.map((className) => (
-              <option key={className} value={className}>
-                Class {className}
+            {availableClasses.map((classOption) => (
+              <option key={classOption.value} value={classOption.value}>
+                Class {classOption.label}
               </option>
             ))}
           </select>
@@ -51,9 +54,9 @@ const StudentFilters = ({
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Sections</option>
-            {availableSections.map((section) => (
-              <option key={section} value={section}>
-                Section {section}
+            {availableSections.map((sectionOption) => (
+              <option key={sectionOption.value} value={sectionOption.value}>
+                Section {sectionOption.label}
               </option>
             ))}
           </select>
@@ -70,9 +73,9 @@ const StudentFilters = ({
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Years</option>
-            {availableYears.map((year) => (
-              <option key={year} value={year}>
-                {year}
+            {availableYears.map((yearOption) => (
+              <option key={yearOption.value} value={yearOption.value}>
+                {yearOption.label}
               </option>
             ))}
           </select>
@@ -96,7 +99,7 @@ const StudentFilters = ({
           <span className="text-sm text-gray-600">Active Filters:</span>
           {selectedClass && (
             <Badge variant="filter" className="bg-blue-100 text-blue-800">
-              Class: {selectedClass}
+              Class: {getOptionLabel(availableClasses, selectedClass)}
               <button
                 onClick={() => clearIndividualFilter("class")}
                 className="ml-2 text-blue-600 hover:text-blue-800"
@@ -107,7 +110,7 @@ const StudentFilters = ({
           )}
           {selectedSection && (
             <Badge variant="filter" className="bg-green-100 text-green-800">
-              Section: {selectedSection}
+              Section: {getOptionLabel(availableSections, selectedSection)}
               <button
                 onClick={() => clearIndividualFilter("section")}
                 className="ml-2 text-green-600 hover:text-green-800"
@@ -118,7 +121,7 @@ const StudentFilters = ({
           )}
           {selectedYear && (
             <Badge variant="filter" className="bg-purple-100 text-purple-800">
-              Year: {selectedYear}
+              Year: {getOptionLabel(availableYears, selectedYear)}
               <button
                 onClick={() => clearIndividualFilter("year")}
                 className="ml-2 text-purple-600 hover:text-purple-800"

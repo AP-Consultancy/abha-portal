@@ -1,5 +1,7 @@
 import axios from "axios";
-const API_BASE_URL = "http://localhost:5001/api";
+import { API_BASE_URL as BASE_URL } from "../utils/constants";
+
+const API_BASE_URL = `${BASE_URL}/api`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,7 +15,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Add auth token if available
-    const token = localStorage.getItem("authToken");
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -28,7 +30,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Handle unauthorized access
-      localStorage.removeItem("authToken");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
       window.location.href = "/login";
     }
     return Promise.reject(error);
