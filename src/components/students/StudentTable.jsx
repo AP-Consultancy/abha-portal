@@ -1,7 +1,49 @@
 import React from "react";
-import { PencilIcon, PhoneIcon, EnvelopeIcon, MapPinIcon, ExclamationTriangleIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { formatDate } from "../../utils/studentUtils";
-import Badge from "../common/Badge";
+
+const display = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
+};
+
+const STUDENT_COLUMNS = [
+  { key: "studentId", label: "Student ID", get: (s) => display(s.studentId || s.id) },
+  { key: "studentName", label: "Student Name", get: (s) => display(s.studentName || `${s.firstName} ${s.lastName}`.trim()) },
+  { key: "firstName", label: "First Name", get: (s) => display(s.firstName) },
+  { key: "lastName", label: "Last Name", get: (s) => display(s.lastName) },
+  { key: "scholarNumber", label: "Scholar No", get: (s) => display(s.scholarNumber) },
+  { key: "admissionNo", label: "Admission No", get: (s) => display(s.admissionNo || s.enrollmentNo) },
+  { key: "rollNo", label: "Roll No", get: (s) => display(s.rollNo) },
+  { key: "gender", label: "Gender", get: (s) => display(s.gender) },
+  { key: "dob", label: "Date of Birth", get: (s) => (s.dob ? formatDate(s.dob) : "—") },
+  { key: "className", label: "Class", get: (s) => display(s.className) },
+  { key: "section", label: "Section", get: (s) => display(s.section) },
+  { key: "academicYear", label: "Academic Year", get: (s) => display(s.academicYear) },
+  { key: "admissionDate", label: "Admission Date", get: (s) => (s.admissionDate ? formatDate(s.admissionDate) : "—") },
+  { key: "aadhaarNo", label: "Aadhaar No", get: (s) => display(s.aadhaarNo) },
+  { key: "sssmid", label: "SSSMID", get: (s) => display(s.sssmid) },
+  { key: "panNo", label: "PAN No", get: (s) => display(s.panNo) },
+  { key: "apaarId", label: "APAAR ID", get: (s) => display(s.apaarId) },
+  { key: "phone", label: "Contact No", get: (s) => display(s.phone) },
+  { key: "alternateContactNo", label: "Alternate Contact", get: (s) => display(s.alternateContactNo) },
+  { key: "email", label: "Email", get: (s) => display(s.email) },
+  { key: "address", label: "Address", get: (s) => display(s.address?.street || s.address) },
+  { key: "city", label: "City", get: (s) => display(s.address?.city) },
+  { key: "state", label: "State", get: (s) => display(s.address?.state) },
+  { key: "pincode", label: "Pincode", get: (s) => display(s.address?.postalCode) },
+  { key: "fatherName", label: "Father Name", get: (s) => display(s.father?.name) },
+  { key: "motherName", label: "Mother Name", get: (s) => display(s.mother?.name) },
+  { key: "monthlyFee", label: "Monthly Fee", get: (s) => display(s.monthlyFee) },
+  { key: "yearlyFee", label: "Yearly Fee", get: (s) => display(s.yearlyFee) },
+  { key: "totalPaid", label: "Total Paid", get: (s) => display(s.totalPaid) },
+  { key: "remainingFee", label: "Remaining Fee", get: (s) => display(s.remainingFee) },
+  { key: "totalPresent", label: "Present Days", get: (s) => display(s.totalPresent) },
+  { key: "totalAbsent", label: "Absent Days", get: (s) => display(s.totalAbsent) },
+  { key: "attendancePercentage", label: "Attendance %", get: (s) => display(s.attendancePercentage) },
+  { key: "lastPaymentDate", label: "Last Payment", get: (s) => (s.lastPaymentDate ? formatDate(s.lastPaymentDate) : "—") },
+  { key: "status", label: "Status", get: (s) => display(s.status) },
+];
 
 const StudentTable = ({ students, onEdit, onDelete }) => {
   if (students.length === 0) {
@@ -19,165 +61,90 @@ const StudentTable = ({ students, onEdit, onDelete }) => {
 
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+        <p className="text-sm text-gray-600">
+          Showing <span className="font-semibold text-gray-900">{students.length}</span> student
+          {students.length === 1 ? "" : "s"}. Scroll horizontally to view all fields.
+        </p>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full min-w-max text-sm">
           <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <tr>
-              <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">
-                Student
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider sticky left-0 z-10 bg-blue-600">
+                #
               </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">
-                Class & Section
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">
-                Contact
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">
-                Parents
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">
-                Transport
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">
+              {STUDENT_COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                >
+                  {col.label}
+                </th>
+              ))}
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider sticky right-0 z-10 bg-indigo-600 whitespace-nowrap">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {students.map((student, index) => (
-              <StudentTableRow
-                key={student._id || student.id || student.enrollmentNo}
-                student={student}
-                index={index}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            ))}
+            {students.map((student, index) => {
+              const rowBg = index % 2 === 0 ? "bg-white" : "bg-gray-50";
+              return (
+              <tr
+                key={student._id || student.id || student.studentId || index}
+                className={rowBg}
+              >
+                <td className={`px-3 py-3 text-gray-500 font-medium sticky left-0 z-[1] ${rowBg} whitespace-nowrap`}>
+                  {index + 1}
+                </td>
+                {STUDENT_COLUMNS.map((col) => {
+                  const isWide =
+                    col.key === "address" ||
+                    col.key === "fatherName" ||
+                    col.key === "motherName" ||
+                    col.key === "email";
+                  return (
+                    <td
+                      key={col.key}
+                      className={
+                        isWide
+                          ? "px-3 py-3 text-gray-800 whitespace-normal align-top min-w-[10rem] max-w-md"
+                          : "px-3 py-3 text-gray-800 whitespace-nowrap align-top"
+                      }
+                      title={col.get(student)}
+                    >
+                      {col.get(student)}
+                    </td>
+                  );
+                })}
+                <td className={`px-3 py-3 sticky right-0 z-[1] ${rowBg} whitespace-nowrap`}>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onEdit(student)}
+                      className="inline-flex items-center px-2 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs"
+                    >
+                      <PencilIcon className="h-4 w-4 mr-1" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(student)}
+                      className="inline-flex items-center px-2 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-xs"
+                    >
+                      <TrashIcon className="h-4 w-4 mr-1" />
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+            })}
           </tbody>
         </table>
       </div>
     </div>
-  );
-};
-
-const StudentTableRow = ({ student, index, onEdit, onDelete }) => {
-  return (
-    <tr
-      className={`hover:bg-blue-50 transition-colors duration-200 ${
-        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-      }`}
-    >
-      {/* Student Info */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0 h-12 w-12">
-            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg">
-              {student.firstName.charAt(0)}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm font-medium text-gray-900">
-              {student.firstName} {student.middleName} {student.lastName}
-            </div>
-            <div className="text-sm text-gray-500">
-              Roll No: {student.rollNo} | {student.enrollmentNo}
-            </div>
-            <div className="text-xs text-gray-400">
-              DOB: {formatDate(student.dob)} | {student.academicYear}
-            </div>
-          </div>
-        </div>
-      </td>
-
-      {/* Class & Section */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm font-medium text-gray-900">
-          Class {student.className}
-        </div>
-        <div className="text-sm text-gray-500">Section {student.section}</div>
-      </td>
-
-      {/* Contact */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center space-x-2 text-sm text-gray-900 mb-1">
-          <PhoneIcon className="h-5 w-5 text-blue-500" />
-          <span>{student.phone}</span>
-        </div>
-        <div className="flex items-center space-x-2 text-sm text-gray-500 mb-1">
-          <EnvelopeIcon className="h-5 w-5 text-blue-500" />
-          <span className="truncate max-w-32">{student.email}</span>
-        </div>
-        <div className="flex items-center space-x-2 text-xs text-gray-400">
-          <MapPinIcon className="h-5 w-5 text-blue-500" />
-          <span>
-            {student.address.city}, {student.address.state}
-          </span>
-        </div>
-      </td>
-
-      {/* Parents */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900 mb-1">
-          <span className="font-medium">Father:</span> {student.father.name}
-        </div>
-        <div className="text-sm text-gray-500 mb-1">
-          <span className="font-medium">Mother:</span> {student.mother.name}
-        </div>
-        <div className="text-xs text-gray-400">{student.father.phone}</div>
-      </td>
-
-      {/* Transport */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        {student.transportOpted ? (
-          <div>
-            <div className="text-sm font-medium text-green-600">
-              {student.busRoute}
-            </div>
-            <div className="text-xs text-gray-500">{student.pickupPoint}</div>
-          </div>
-        ) : (
-          <span className="text-sm text-gray-400">No Transport</span>
-        )}
-      </td>
-
-      {/* Status */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant="status" status={student.status}>
-          {student.status}
-        </Badge>
-        {student.medicalConditions && student.medicalConditions.length > 0 && (
-          <div className="mt-1">
-            <Badge variant="warning" className="inline-flex items-center">
-              <ExclamationTriangleIcon className="h-4 w-4 mr-1 text-yellow-500" />
-              {student.medicalConditions[0]}
-            </Badge>
-          </div>
-        )}
-      </td>
-
-      {/* Actions */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex gap-2">
-          <button
-            onClick={() => onEdit(student)}
-            className="inline-flex items-center px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <PencilIcon className="h-5 w-5 mr-2" />
-            Edit
-          </button>
-          <button
-            onClick={() => onDelete(student)}
-            className="inline-flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <TrashIcon className="h-5 w-5 mr-2" />
-            Delete
-          </button>
-        </div>
-      </td>
-    </tr>
   );
 };
 

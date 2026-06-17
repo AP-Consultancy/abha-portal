@@ -64,7 +64,7 @@ const allNavigation = [
     name: "My Subjects",
     href: "/subjects",
     icon: BookOpenIcon,
-    roles: ["student"],
+    roles: ["student", "teacher", "employee"],
   },
   {
     name: "Fees Management",
@@ -82,7 +82,7 @@ const allNavigation = [
     name: "Attendance Management",
     href: "/attendance",
     icon: ClockIcon,
-    roles: ["admin", "teacher"],
+    roles: ["admin", "teacher", "employee"],
   },
   {
     name: "My Attendance",

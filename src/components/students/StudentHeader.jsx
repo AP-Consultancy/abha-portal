@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { PencilIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, PlusIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 
 const StudentHeader = ({ totalStudents, filteredStudents }) => {
   const navigate = useNavigate();
@@ -28,13 +28,22 @@ const StudentHeader = ({ totalStudents, filteredStudents }) => {
           <p className="text-lg font-semibold text-gray-900">2024-2025</p>
         </div>
 
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap gap-2 justify-end">
           <button
+            type="button"
             onClick={() => navigate("/add-student")}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
             <span>Add Student</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/add-student")}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-green-700 transition-colors"
+          >
+            <ArrowUpTrayIcon className="h-5 w-5" />
+            <span>Bulk Upload</span>
           </button>
         </div>
       </div>

@@ -4,7 +4,6 @@ import BasicInfoForm from "./forms/BasicInfoForm";
 import AcademicInfoForm from "./forms/AcademicInfoForm";
 import ContactInfoForm from "./forms/ContactInfoForm";
 import ParentInfoForm from "./forms/ParentInfoForm";
-import { TransportInfoForm, HealthAdminForm } from "./forms/TransportInfoForm";
 import { transformFormDataForUpdate } from "../../utils/studentUtils";
 
 const StudentModal = ({
@@ -99,18 +98,6 @@ const StudentModal = ({
 
                 {/* Parent/Guardian Information Section */}
                 <ParentInfoForm
-                  formData={formData}
-                  handleInputChange={handleInputChange}
-                />
-
-                {/* Transport Information Section */}
-                <TransportInfoForm
-                  formData={formData}
-                  handleInputChange={handleInputChange}
-                />
-
-                {/* Health & Administrative Section */}
-                <HealthAdminForm
                   formData={formData}
                   handleInputChange={handleInputChange}
                 />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { filterStudents } from "../utils/studentUtils";
 
 export const useStudentFilters = (students) => {
@@ -6,7 +6,6 @@ export const useStudentFilters = (students) => {
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
-  const [filteredStudents, setFilteredStudents] = useState([]);
 
   const filters = {
     selectedClass,
@@ -14,6 +13,11 @@ export const useStudentFilters = (students) => {
     selectedYear,
     searchTerm,
   };
+
+  const filteredStudents = useMemo(
+    () => filterStudents(students, filters),
+    [students, selectedClass, selectedSection, selectedYear, searchTerm]
+  );
 
   const clearAllFilters = () => {
     setSelectedClass("");
@@ -39,11 +43,6 @@ export const useStudentFilters = (students) => {
   };
 
   const hasActiveFilters = selectedClass || selectedSection || selectedYear;
-
-  useEffect(() => {
-    const filtered = filterStudents(students, filters);
-    setFilteredStudents(filtered);
-  }, [students, selectedClass, selectedSection, selectedYear, searchTerm]);
 
   return {
     searchTerm,

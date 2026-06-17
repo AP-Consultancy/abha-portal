@@ -1,6 +1,6 @@
 import React from "react";
 import { BookOpenIcon } from "@heroicons/react/24/outline";
-import { FORM_STYLES, SECTION_OPTIONS } from "../../../utils/constants";
+import { CLASS_OPTIONS, FORM_STYLES, SECTION_OPTIONS } from "../../../utils/constants";
 
 const AcademicInfoForm = ({ formData, handleInputChange }) => {
   const { labelClasses, inputClasses } = FORM_STYLES;
@@ -17,15 +17,20 @@ const AcademicInfoForm = ({ formData, handleInputChange }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
           <label className={labelClasses}>Class Name *</label>
-          <input
-            type="text"
+          <select
             name="className"
             value={formData.className}
             onChange={handleInputChange}
             className={inputClasses}
-            placeholder="10th Grade"
             required
-          />
+          >
+            <option value="">Select class</option>
+            {CLASS_OPTIONS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -40,22 +45,21 @@ const AcademicInfoForm = ({ formData, handleInputChange }) => {
             <option value="">Select section</option>
             {SECTION_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
-                Section {option.label}
+                {option.label}
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className={labelClasses}>Academic Year *</label>
+          <label className={labelClasses}>Admission No</label>
           <input
             type="text"
-            name="academicYear"
-            value={formData.academicYear}
+            name="admissionNo"
+            value={formData.admissionNo}
             onChange={handleInputChange}
             className={inputClasses}
-            placeholder="2024-2025"
-            required
+            placeholder="e.g. 2025-001"
           />
         </div>
 

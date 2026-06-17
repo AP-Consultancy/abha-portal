@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { teacherService } from "../services/teacherService";
 import {
@@ -13,6 +14,7 @@ import {
 const TeacherDashboard = () => {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState({
+    teacherName: "Teacher",
     totalStudents: 0,
     assignedClasses: [],
     assignedSubjects: [],
@@ -21,33 +23,35 @@ const TeacherDashboard = () => {
     upcomingExams: [],
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchDashboardData();
   }, [user]);
 
   const fetchDashboardData = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (!user) return;
-      const teacher = await teacherService.getTeacherProfile(user);
-      setDashboardData((prev) => ({
-        ...prev,
-        assignedClasses: teacher?.assignedClasses || [],
-        assignedSubjects: teacher?.assignedSubjects || [],
-      }));
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      setLoading(true);
+      setError("");
+      const data = await teacherService.getTeacherDashboard(user);
+      setDashboardData(data);
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+      setError(err.message || "Could not load dashboard");
     } finally {
       setLoading(false);
     }
   };
 
-  const teacherData = user?.userData || user?.teacher;
-
   const quickActions = [
     {
-      name: "View Students",
-      href: "/students",
+      name: "My Classes",
+      href: "/classes",
       icon: UsersIcon,
       color: "bg-blue-500",
     },
@@ -64,23 +68,36 @@ const TeacherDashboard = () => {
       color: "bg-yellow-500",
     },
     {
-      name: "Manage Subjects",
+      name: "My Subjects",
       href: "/subjects",
       icon: BookOpenIcon,
       color: "bg-purple-500",
     },
   ];
 
+  if (loading) {
+    return (
+      <div className="p-6 flex justify-center items-center min-h-[40vh]">
+        <p className="text-gray-600">Loading your dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {teacherData?.name || "Teacher"}!
+          Welcome back, {dashboardData.teacherName}!
         </h1>
-        <p className="text-gray-600">Here's your teaching overview for today</p>
+        <p className="text-gray-600">Here&apos;s your teaching overview for today</p>
       </div>
 
-      {/* Stats Overview */}
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center">
@@ -90,7 +107,7 @@ const TeacherDashboard = () => {
             <div className="ml-4">
               <p className="text-sm text-gray-500">Total Students</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {dashboardData.totalStudents || 0}
+                {dashboardData.totalStudents}
               </p>
             </div>
           </div>
@@ -139,16 +156,13 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Quick Actions
-        </h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action) => (
-            <a
+            <Link
               key={action.name}
-              href={action.href}
+              to={action.href}
               className="flex items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
             >
               <div
@@ -157,16 +171,15 @@ const TeacherDashboard = () => {
                 <action.icon className="h-5 w-5 text-white" />
               </div>
               <span className="font-medium text-gray-900">{action.name}</span>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Today's Schedule */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Today's Schedule
+            Today&apos;s Teaching
           </h2>
           <div className="space-y-3">
             {dashboardData.todaySchedule?.length > 0 ? (
@@ -176,12 +189,8 @@ const TeacherDashboard = () => {
                   className="flex items-center p-3 bg-gray-50 rounded-lg"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">
-                      {period.subject}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {period.time} - {period.class}
-                    </p>
+                    <p className="font-medium text-gray-900">{period.subject}</p>
+                    <p className="text-sm text-gray-500">{period.class}</p>
                   </div>
                   <div className="text-sm text-gray-400">{period.room}</div>
                 </div>
@@ -189,17 +198,15 @@ const TeacherDashboard = () => {
             ) : (
               <div className="text-center py-8 text-gray-500">
                 <CalendarIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                <p>No classes scheduled for today</p>
+                <p>No class assignments found</p>
+                <p className="text-xs mt-1">Contact admin to assign classes</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Assigned Classes */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            My Classes
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">My Classes</h2>
           <div className="space-y-3">
             {dashboardData.assignedClasses?.length > 0 ? (
               dashboardData.assignedClasses.map((cls, index) => (
@@ -209,7 +216,7 @@ const TeacherDashboard = () => {
                 >
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">
-                      {cls.name} - {cls.section}
+                      {cls.name} — Section {cls.section}
                     </p>
                     <p className="text-sm text-gray-500">
                       {cls.studentCount} students
@@ -227,11 +234,8 @@ const TeacherDashboard = () => {
           </div>
         </div>
 
-        {/* Assigned Subjects */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            My Subjects
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">My Subjects</h2>
           <div className="space-y-3">
             {dashboardData.assignedSubjects?.length > 0 ? (
               dashboardData.assignedSubjects.map((subject, index) => (
@@ -241,11 +245,9 @@ const TeacherDashboard = () => {
                 >
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">{subject.name}</p>
-                    <p className="text-sm text-gray-500">
-                      Code: {subject.code}
-                    </p>
+                    <p className="text-sm text-gray-500">Class: {subject.grade}</p>
                   </div>
-                  <div className="text-sm text-gray-400">{subject.grade}</div>
+                  <div className="text-sm text-gray-400">ID {subject.code}</div>
                 </div>
               ))
             ) : (
@@ -257,41 +259,44 @@ const TeacherDashboard = () => {
           </div>
         </div>
 
-        {/* Recent Attendance */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
             Recent Attendance
           </h2>
           <div className="space-y-3">
             {dashboardData.recentAttendance?.length > 0 ? (
-              dashboardData.recentAttendance
-                .slice(0, 5)
-                .map((attendance, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">
-                        {attendance.class}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(attendance.date).toLocaleDateString()} -{" "}
-                        {attendance.present}/{attendance.total} present
-                      </p>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {Math.round(
-                        (attendance.present / attendance.total) * 100
-                      )}
-                      %
-                    </div>
+              dashboardData.recentAttendance.map((record, index) => (
+                <div
+                  key={index}
+                  className="flex items-center p-3 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{record.class}</p>
+                    <p className="text-sm text-gray-500">
+                      {record.date
+                        ? new Date(record.date).toLocaleDateString("en-IN")
+                        : "—"}{" "}
+                      — {record.present}/{record.total} present
+                    </p>
                   </div>
-                ))
+                  <div className="text-sm text-gray-400">
+                    {record.total
+                      ? Math.round((record.present / record.total) * 100)
+                      : 0}
+                    %
+                  </div>
+                </div>
+              ))
             ) : (
               <div className="text-center py-8 text-gray-500">
                 <ClockIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                 <p>No recent attendance records</p>
+                <Link
+                  to="/attendance"
+                  className="text-sm text-blue-600 hover:underline mt-2 inline-block"
+                >
+                  Mark attendance
+                </Link>
               </div>
             )}
           </div>

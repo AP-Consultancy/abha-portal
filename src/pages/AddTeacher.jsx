@@ -4,116 +4,87 @@ import {
   EnvelopeIcon,
   PhoneIcon,
   CalendarIcon,
-  MapPinIcon,
   BriefcaseIcon,
-  CheckCircleIcon,
+  IdentificationIcon,
+  BookOpenIcon,
 } from "@heroicons/react/24/outline";
 import { teacherService } from "../services/teacherService";
+import CSVUpload from "../components/common/CSVUpload";
+import {
+  ACADEMIC_YEAR_OPTIONS,
+  CLASS_OPTIONS,
+  SECTION_OPTIONS,
+  SUBJECT_OPTIONS,
+} from "../utils/constants";
+
+const INITIAL_FORM = {
+  enrollmentNo: "",
+  name: "",
+  email: "",
+  contact: "",
+  password: "",
+  qualification: "",
+  specialization: "",
+  joiningDate: "",
+  salary: "",
+  className: "",
+  section: "",
+  subjectId: "",
+  academicYearId: ACADEMIC_YEAR_OPTIONS[0]?.value || "1",
+  isClassTeacher: false,
+};
 
 export default function TeacherRegistrationForm() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    contact: "",
-    alternateContact: "",
-    gender: "",
-    dob: "",
-    address: {
-      street: "",
-      city: "",
-      state: "",
-      zip: "",
-      country: "",
-    },
-    designation: "",
-    department: "",
-    joiningDate: "",
-    status: "Active",
-  });
-
+  const [formData, setFormData] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [uploadedCredentials, setUploadedCredentials] = useState(null);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    if (name.startsWith("address.")) {
-      const key = name.split(".")[1]; // e.g., "street"
-      setFormData((prev) => ({
-        ...prev,
-        address: {
-          ...prev.address,
-          [key]: value,
-        },
-      }));
-
-      // Clear errors for address fields if needed
-      if (errors.address && errors.address[key]) {
-        setErrors((prev) => ({
-          ...prev,
-          address: {
-            ...prev.address,
-            [key]: "",
-          },
-        }));
-      }
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-
-      if (errors[name]) {
-        setErrors((prev) => ({
-          ...prev,
-          [name]: "",
-        }));
-      }
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
 
+    if (!formData.enrollmentNo.trim()) {
+      newErrors.enrollmentNo = "Employee ID is required";
+    }
     if (!formData.name.trim()) newErrors.name = "Name is required";
     if (!formData.email.trim()) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email))
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Email is invalid";
-    if (!formData.contact.trim())
-      newErrors.contact = "Contact number is required";
-    else if (!/^\d{10}$/.test(formData.contact))
-      newErrors.contact = "Contact must be 10 digits";
-    if (
-      formData.alternateContact &&
-      !/^\d{10}$/.test(formData.alternateContact)
-    ) {
-      newErrors.alternateContact = "Alternate contact must be 10 digits";
     }
-    if (!formData.gender) newErrors.gender = "Gender is required";
-    if (!formData.dob) newErrors.dob = "Date of birth is required";
-    if (!formData.address.street.trim())
-      newErrors.address = {
-        ...newErrors.address,
-        street: "Street is required",
-      };
-    if (!formData.address.city.trim())
-      newErrors.address = { ...newErrors.address, city: "City is required" };
-    if (!formData.address.state.trim())
-      newErrors.address = { ...newErrors.address, state: "State is required" };
-    if (!formData.address.zip.trim())
-      newErrors.address = { ...newErrors.address, zip: "Zip is required" };
-    if (!formData.address.country.trim())
-      newErrors.address = {
-        ...newErrors.address,
-        country: "Country is required",
-      };
-    if (!formData.designation.trim())
-      newErrors.designation = "Designation is required";
-    if (!formData.department.trim())
-      newErrors.department = "Department is required";
-    if (!formData.joiningDate)
+    if (!formData.contact.trim()) {
+      newErrors.contact = "Contact number is required";
+    } else if (!/^\d{10}$/.test(formData.contact)) {
+      newErrors.contact = "Contact must be 10 digits";
+    }
+    if (!formData.qualification.trim()) {
+      newErrors.qualification = "Qualification is required";
+    }
+    if (!formData.specialization.trim()) {
+      newErrors.specialization = "Specialization is required";
+    }
+    if (!formData.joiningDate) {
       newErrors.joiningDate = "Joining date is required";
+    }
+    if (!formData.className) {
+      newErrors.className = "Class is required";
+    }
+    if (!formData.section) {
+      newErrors.section = "Section is required";
+    }
 
     return newErrors;
   };
@@ -128,39 +99,57 @@ export default function TeacherRegistrationForm() {
 
     setIsSubmitting(true);
     setSubmitMessage("");
-    console.log("Form Data:", formData);
-    try {
-      await teacherService.createTeacher(formData);
-      setSubmitMessage("Teacher registered successfully!");
 
-      // Show success message with default password information
-      alert(`Teacher registered successfully!\n\nLogin Email: ${formData.email}\nDefault Password: ${formData.email || "teacher@123"}\n\nPlease share these credentials with the teacher.`);
-        
-      setFormData({
-          name: "",
-          email: "",
-          contact: "",
-          alternateContact: "",
-          gender: "",
-          dob: "",
-          address: {
-            street: "",
-            city: "",
-            state: "",
-            zip: "",
-            country: "",
-          },
-          designation: "",
-          department: "",
-          joiningDate: "",
-          status: "Active",
+    try {
+      await teacherService.createTeacher({
+        enrollmentNo: formData.enrollmentNo.trim(),
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        contact: formData.contact.trim(),
+        password: formData.password.trim() || undefined,
+        department: formData.qualification.trim(),
+        designation: formData.specialization.trim(),
+        qualification: formData.qualification.trim(),
+        specialization: formData.specialization.trim(),
+        joiningDate: formData.joiningDate,
+        salary: formData.salary,
+        className: formData.className,
+        section: formData.section,
+        subjectId: formData.subjectId || undefined,
+        academicYearId: formData.academicYearId,
+        isClassTeacher: formData.isClassTeacher,
       });
+
+      const defaultPassword = formData.password.trim() || formData.enrollmentNo.trim();
+      setSubmitMessage("Teacher registered successfully!");
+      alert(
+        `Teacher registered successfully!\n\nLogin Email: ${formData.email}\nDefault Password: ${defaultPassword}\n\nPlease share these credentials with the teacher.`
+      );
+      setFormData(INITIAL_FORM);
     } catch (error) {
-      setSubmitMessage("Network error. Please try again.");
+      setSubmitMessage(error.message || "Failed to register teacher. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleBulkCsvUpload = async (_uploadFormData, file) => {
+    setBulkMessage("");
+    if (!file) {
+      throw new Error("Please select a CSV file to upload.");
+    }
+
+    const result = await teacherService.bulkUploadTeachers(file);
+    if (result.credentials?.length > 0) {
+      setUploadedCredentials(result.credentials);
+    }
+    setBulkMessage(result.message || "Bulk upload completed.");
+  };
+
+  const inputClass = (field) =>
+    `w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+      errors[field] ? "border-red-500" : "border-gray-300"
+    }`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4">
@@ -169,22 +158,73 @@ export default function TeacherRegistrationForm() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full mb-4 shadow-lg">
             <UserIcon className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            Teacher Registration
-          </h1>
-          <p className="text-gray-600">Join our academic community</p>
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">Teacher Registration</h1>
+          <p className="text-gray-600">Register a teacher with backend-aligned fields</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="mb-8 bg-green-50 border border-green-200 rounded-xl p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Bulk import teachers</h2>
+                <p className="text-sm text-gray-600">
+                  Upload a CSV to create multiple teachers at once (default password =
+                  Employee ID).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkUpload((v) => !v)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+              >
+                {showBulkUpload ? "Hide bulk upload" : "Bulk upload CSV"}
+              </button>
+            </div>
+            {bulkMessage && (
+              <p className="mt-3 text-sm text-green-700 bg-white border border-green-200 rounded-lg px-3 py-2">
+                {bulkMessage}
+              </p>
+            )}
+            {showBulkUpload && (
+              <div className="mt-4">
+                <CSVUpload
+                  onUpload={handleBulkCsvUpload}
+                  title="Upload teacher CSV"
+                  description="Uses PostgreSQL sp_bulk_upload_teachers for batch onboarding."
+                  entityType="teachers"
+                  acceptedFileTypes=".csv"
+                  maxFileSize={10}
+                  showCredentialExport={Boolean(uploadedCredentials?.length)}
+                  credentialData={uploadedCredentials}
+                  sampleDownloadUrl="/sample_teacher_bulk_upload.csv"
+                />
+              </div>
+            )}
+          </div>
+
           <div className="space-y-6">
-            {/* Personal Information Section */}
             <div className="border-b border-gray-200 pb-6">
               <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
-                <UserIcon className="w-6 h-6 mr-2 text-blue-600" />
-                Personal Information
+                <IdentificationIcon className="w-6 h-6 mr-2 text-blue-600" />
+                Employee Details
               </h2>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Employee ID *
+                  </label>
+                  <input
+                    type="text"
+                    name="enrollmentNo"
+                    value={formData.enrollmentNo}
+                    onChange={handleChange}
+                    className={inputClass("enrollmentNo")}
+                    placeholder="e.g. EMP001"
+                  />
+                  {errors.enrollmentNo && (
+                    <p className="mt-1 text-sm text-red-600">{errors.enrollmentNo}</p>
+                  )}
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Full Name *
@@ -194,176 +234,38 @@ export default function TeacherRegistrationForm() {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                      errors.name ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder="Enter full name"
+                    className={inputClass("name")}
+                    placeholder="First and last name"
                   />
                   {errors.name && (
                     <p className="mt-1 text-sm text-red-600">{errors.name}</p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Gender *
+                    Login Password (optional)
                   </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
+                  <input
+                    type="text"
+                    name="password"
+                    value={formData.password}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                      errors.gender ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  {errors.gender && (
-                    <p className="mt-1 text-sm text-red-600">{errors.gender}</p>
-                  )}
+                    className={inputClass("password")}
+                    placeholder="Defaults to Employee ID"
+                  />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date of Birth *
-                  </label>
-                  <div className="relative">
-                    <CalendarIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input
-                      type="date"
-                      name="dob"
-                      value={formData.dob}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                        errors.dob ? "border-red-500" : "border-gray-300"
-                      }`}
-                    />
-                  </div>
-                  {errors.dob && (
-                    <p className="mt-1 text-sm text-red-600">{errors.dob}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address *
-                </label>
-
-                <input
-                  type="text"
-                  name="address.street"
-                  value={formData.address.street}
-                  onChange={handleChange}
-                  placeholder="Street"
-                  className={`w-full mb-2 px-3 py-2 border rounded ${
-                    errors.address?.street
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  }`}
-                />
-                {errors.address?.street && (
-                  <p className="text-red-600 text-sm mb-1">
-                    {errors.address.street}
-                  </p>
-                )}
-
-                <input
-                  type="text"
-                  name="address.city"
-                  value={formData.address.city}
-                  onChange={handleChange}
-                  placeholder="City"
-                  className={`w-full mb-2 px-3 py-2 border rounded ${
-                    errors.address?.city ? "border-red-500" : "border-gray-300"
-                  }`}
-                />
-                {errors.address?.city && (
-                  <p className="text-red-600 text-sm mb-1">
-                    {errors.address.city}
-                  </p>
-                )}
-
-                <input
-                  type="text"
-                  name="address.state"
-                  value={formData.address.state}
-                  onChange={handleChange}
-                  placeholder="State"
-                  className={`w-full mb-2 px-3 py-2 border rounded ${
-                    errors.address?.state ? "border-red-500" : "border-gray-300"
-                  }`}
-                />
-                {errors.address?.state && (
-                  <p className="text-red-600 text-sm mb-1">
-                    {errors.address.state}
-                  </p>
-                )}
-
-                <input
-                  type="text"
-                  name="address.zip"
-                  value={formData.address.zip}
-                  onChange={handleChange}
-                  placeholder="Zip"
-                  className={`w-full mb-2 px-3 py-2 border rounded ${
-                    errors.address?.zip ? "border-red-500" : "border-gray-300"
-                  }`}
-                />
-                {errors.address?.zip && (
-                  <p className="text-red-600 text-sm mb-1">
-                    {errors.address.zip}
-                  </p>
-                )}
-
-                <input
-                  type="text"
-                  name="address.country"
-                  value={formData.address.country}
-                  onChange={handleChange}
-                  placeholder="Country"
-                  className={`w-full mb-2 px-3 py-2 border rounded ${
-                    errors.address?.country
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  }`}
-                />
-                {errors.address?.country && (
-                  <p className="text-red-600 text-sm mb-1">
-                    {errors.address.country}
-                  </p>
-                )}
               </div>
             </div>
 
-            {/* Contact Information Section */}
             <div className="border-b border-gray-200 pb-6">
               <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
                 <PhoneIcon className="w-6 h-6 mr-2 text-green-600" />
-                Contact Information
+                Contact
               </h2>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
+                    Email *
                   </label>
                   <div className="relative">
                     <EnvelopeIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -372,20 +274,17 @@ export default function TeacherRegistrationForm() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                        errors.email ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="Enter email address"
+                      className={`${inputClass("email")} pl-10`}
+                      placeholder="teacher@school.com"
                     />
                   </div>
                   {errors.email && (
                     <p className="mt-1 text-sm text-red-600">{errors.email}</p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contact Number *
+                    Phone *
                   </label>
                   <div className="relative">
                     <PhoneIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -394,105 +293,55 @@ export default function TeacherRegistrationForm() {
                       name="contact"
                       value={formData.contact}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                        errors.contact ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="Enter 10-digit contact number"
+                      className={`${inputClass("contact")} pl-10`}
+                      placeholder="10-digit mobile number"
                     />
                   </div>
                   {errors.contact && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.contact}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Alternate Contact
-                  </label>
-                  <div className="relative">
-                    <PhoneIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input
-                      type="tel"
-                      name="alternateContact"
-                      value={formData.alternateContact}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                        errors.alternateContact
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
-                      placeholder="Enter alternate contact (optional)"
-                    />
-                  </div>
-                  {errors.alternateContact && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.alternateContact}
-                    </p>
+                    <p className="mt-1 text-sm text-red-600">{errors.contact}</p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Professional Information Section */}
             <div className="pb-6">
               <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
                 <BriefcaseIcon className="w-6 h-6 mr-2 text-purple-600" />
                 Professional Information
               </h2>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Designation *
+                    Qualification *
                   </label>
-                  <div className="relative">
-                    <CheckCircleIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      name="designation"
-                      value={formData.designation}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                        errors.designation
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
-                      placeholder="e.g., Assistant Professor, Lecturer"
-                    />
-                  </div>
-                  {errors.designation && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.designation}
-                    </p>
+                  <input
+                    type="text"
+                    name="qualification"
+                    value={formData.qualification}
+                    onChange={handleChange}
+                    className={inputClass("qualification")}
+                    placeholder="e.g. M.Sc. Mathematics"
+                  />
+                  {errors.qualification && (
+                    <p className="mt-1 text-sm text-red-600">{errors.qualification}</p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department *
+                    Specialization *
                   </label>
-                  <div className="relative">
-                    <MapPinIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      name="department"
-                      value={formData.department}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                        errors.department ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="e.g., Computer Science, Mathematics"
-                    />
-                  </div>
-                  {errors.department && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.department}
-                    </p>
+                  <input
+                    type="text"
+                    name="specialization"
+                    value={formData.specialization}
+                    onChange={handleChange}
+                    className={inputClass("specialization")}
+                    placeholder="e.g. Mathematics Teacher"
+                  />
+                  {errors.specialization && (
+                    <p className="mt-1 text-sm text-red-600">{errors.specialization}</p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Joining Date *
@@ -504,23 +353,129 @@ export default function TeacherRegistrationForm() {
                       name="joiningDate"
                       value={formData.joiningDate}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                        errors.joiningDate
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
+                      className={`${inputClass("joiningDate")} pl-10`}
                     />
                   </div>
                   {errors.joiningDate && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.joiningDate}
-                    </p>
+                    <p className="mt-1 text-sm text-red-600">{errors.joiningDate}</p>
                   )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Salary (optional)
+                  </label>
+                  <input
+                    type="number"
+                    name="salary"
+                    value={formData.salary}
+                    onChange={handleChange}
+                    className={inputClass("salary")}
+                    placeholder="Monthly salary"
+                    min="0"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Submit Button */}
+            <div className="border-b border-gray-200 pb-6">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                <BookOpenIcon className="w-6 h-6 mr-2 text-indigo-600" />
+                Class Assignment
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Class *
+                  </label>
+                  <select
+                    name="className"
+                    value={formData.className}
+                    onChange={handleChange}
+                    className={inputClass("className")}
+                  >
+                    <option value="">Select class</option>
+                    {CLASS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.className && (
+                    <p className="mt-1 text-sm text-red-600">{errors.className}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Section *
+                  </label>
+                  <select
+                    name="section"
+                    value={formData.section}
+                    onChange={handleChange}
+                    className={inputClass("section")}
+                  >
+                    <option value="">Select section</option>
+                    {SECTION_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.section && (
+                    <p className="mt-1 text-sm text-red-600">{errors.section}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subject (optional)
+                  </label>
+                  <select
+                    name="subjectId"
+                    value={formData.subjectId}
+                    onChange={handleChange}
+                    className={inputClass("subjectId")}
+                  >
+                    <option value="">Select subject</option>
+                    {SUBJECT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Academic Year *
+                  </label>
+                  <select
+                    name="academicYearId"
+                    value={formData.academicYearId}
+                    onChange={handleChange}
+                    className={inputClass("academicYearId")}
+                  >
+                    {ACADEMIC_YEAR_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isClassTeacher"
+                    name="isClassTeacher"
+                    checked={formData.isClassTeacher}
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="isClassTeacher" className="text-sm font-medium text-gray-700">
+                    Class teacher for this class and section
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-center pt-6">
               <button
                 type="button"
@@ -534,7 +489,6 @@ export default function TeacherRegistrationForm() {
               </button>
             </div>
 
-            {/* Submit Message */}
             {submitMessage && (
               <div
                 className={`text-center p-4 rounded-lg ${

@@ -180,24 +180,33 @@ const Reports = () => {
     }
 
     try {
+      const selectedClass = classes.find((c) => c._id === filters.class);
       const attendanceData = await attendanceService.getMonthlyReport(
         filters.class,
         filters.month,
         filters.year
       );
 
+      const rows = (attendanceData.studentAttendance || []).map((row) => ({
+        studentName: row.student?.name || "",
+        rollNo: row.student?.rollNo || "",
+        totalDays: row.statistics?.totalDays ?? 0,
+        present: row.statistics?.presentDays ?? 0,
+        absent: row.statistics?.absentDays ?? 0,
+        leave: row.statistics?.leaveDays ?? 0,
+        percentage: `${row.statistics?.attendancePercentage ?? 0}%`,
+      }));
+
       return {
-        title: 'Monthly Attendance Report',
+        title: `Monthly Attendance — ${selectedClass?.name || "Class"} Section ${selectedClass?.section || ""}`,
         type: 'attendance-summary',
-        data: attendanceData.studentAttendance || [],
+        data: rows,
         summary: {
-          totalStudents: attendanceData.totalStudents || 0,
+          totalStudents: attendanceData.totalStudents || rows.length,
           month: filters.month,
           year: filters.year,
-          averageAttendance: attendanceData.studentAttendance?.reduce((acc, student) => 
-            acc + student.statistics.attendancePercentage, 0
-          ) / (attendanceData.studentAttendance?.length || 1) || 0
-        }
+          averageAttendance: attendanceData.averageAttendance ?? 0,
+        },
       };
     } catch (error) {
       throw new Error('Failed to fetch attendance data');
@@ -328,16 +337,15 @@ const Reports = () => {
   };
 
   const generateAttendanceCSV = (attendance) => {
-    const headers = ['Student Name', 'Roll No', 'Total Days', 'Present', 'Absent', 'Late', 'Half Day', 'Percentage'];
-    const rows = attendance.map(a => [
-      a.student.name,
-      a.student.rollNo,
-      a.statistics.totalDays,
-      a.statistics.presentDays,
-      a.statistics.absentDays,
-      a.statistics.lateDays,
-      a.statistics.halfDays,
-      `${a.statistics.attendancePercentage}%`
+    const headers = ['Student Name', 'Roll No', 'Total Days', 'Present', 'Absent', 'Leave', 'Percentage'];
+    const rows = attendance.map((a) => [
+      a.studentName ?? a.student?.name,
+      a.rollNo ?? a.student?.rollNo,
+      a.totalDays ?? a.statistics?.totalDays,
+      a.present ?? a.statistics?.presentDays,
+      a.absent ?? a.statistics?.absentDays,
+      a.leave ?? a.statistics?.leaveDays,
+      a.percentage ?? `${a.statistics?.attendancePercentage ?? 0}%`,
     ]);
     return [headers, ...rows].map(row => row.join(',')).join('\n');
   };

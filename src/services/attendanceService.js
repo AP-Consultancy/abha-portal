@@ -1,12 +1,32 @@
 import apiService from "./apiService";
 import { API_ENDPOINTS } from "../utils/constants";
+import { parseClassKey, toLocalDateKey } from "../utils/attendanceUtils";
+import { studentService } from "./studentService";
 
-const normalizeStatus = (status) => {
-  const normalized = String(status || "Present").toLowerCase();
-  if (normalized === "absent") return "Absent";
-  if (normalized === "late") return "Late";
-  if (normalized === "half day" || normalized === "half_day") return "Half Day";
-  return "Present";
+const STATUS_TO_API = {
+  present: "PRESENT",
+  absent: "ABSENT",
+  leave: "LEAVE",
+};
+
+const STATUS_FROM_API = {
+  PRESENT: "Present",
+  ABSENT: "Absent",
+  LEAVE: "Leave",
+};
+
+export const normalizeStatusForApi = (status) => {
+  const key = String(status || "Present")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  if (key === "half_day" || key === "late") return "LEAVE";
+  return STATUS_TO_API[key] || "PRESENT";
+};
+
+export const normalizeStatusForUI = (status) => {
+  const upper = String(status || "PRESENT").trim().toUpperCase();
+  return STATUS_FROM_API[upper] || "Present";
 };
 
 const normalizeRecord = (record = {}) => ({
@@ -16,8 +36,8 @@ const normalizeRecord = (record = {}) => ({
   studentId: record.studentId || record.student_id,
   classId: record.classId || record.class_id,
   sectionId: record.sectionId || record.section_id,
-  date: record.date || record.attendance_date,
-  status: normalizeStatus(record.status || record.attendance_status),
+  date: toLocalDateKey(record.date || record.attendance_date),
+  status: normalizeStatusForUI(record.status || record.attendance_status),
   remarks: record.remarks || "",
   markedBy: record.markedBy || record.marked_by,
 });
@@ -28,22 +48,22 @@ const calculateStatistics = (attendance) => {
       acc.totalDays += 1;
       if (record.status === "Present") acc.presentDays += 1;
       if (record.status === "Absent") acc.absentDays += 1;
-      if (record.status === "Late") acc.lateDays += 1;
-      if (record.status === "Half Day") acc.halfDays += 1;
+      if (record.status === "Leave") acc.leaveDays += 1;
       return acc;
     },
     {
       totalDays: 0,
       presentDays: 0,
       absentDays: 0,
-      lateDays: 0,
-      halfDays: 0,
+      leaveDays: 0,
       attendancePercentage: 0,
     }
   );
 
   stats.attendancePercentage = stats.totalDays
-    ? Math.round(((stats.presentDays + stats.lateDays * 0.5 + stats.halfDays * 0.5) / stats.totalDays) * 100)
+    ? Math.round(
+        ((stats.presentDays + stats.leaveDays * 0.5) / stats.totalDays) * 100
+      )
     : 0;
 
   return stats;
@@ -56,11 +76,14 @@ const listFromResponse = (data) => {
 
 const isWithinDateRange = (record, startDate, endDate) => {
   if (!record.date || (!startDate && !endDate)) return true;
-  const recordDate = new Date(record.date).toISOString().split("T")[0];
+  const recordDate = toLocalDateKey(record.date);
   if (startDate && recordDate < startDate) return false;
   if (endDate && recordDate > endDate) return false;
   return true;
 };
+
+const studentRosterKey = (student) =>
+  String(student._id || student.id || student.studentId || "");
 
 export const attendanceService = {
   markAttendance: async ({
@@ -82,12 +105,11 @@ export const attendanceService = {
         class_id: classId || null,
         section_id: sectionId || null,
         attendance_date: date || null,
-        status: status || "Present",
+        status: normalizeStatusForApi(status),
         marked_by: markedBy || null,
         remarks: remarks || null,
       };
-      const data = await apiService.post(API_ENDPOINTS.MANAGE_ATTENDANCE, payload);
-      return data;
+      return await apiService.post(API_ENDPOINTS.MANAGE_ATTENDANCE, payload);
     } catch (error) {
       console.error("Error marking attendance:", error);
       throw error;
@@ -95,27 +117,45 @@ export const attendanceService = {
   },
 
   markBulkAttendance: async ({ classId, sectionId, date, attendanceData, markedBy }) => {
-    try {
-      const results = await Promise.all(
-        attendanceData.map((entry) =>
-          attendanceService.markAttendance({
+    const dateKey = toLocalDateKey(date);
+    const results = [];
+    for (const entry of attendanceData) {
+      const attendanceId = entry.attendanceId || null;
+      const action = attendanceId ? 2 : 1;
+      try {
+        const result = await attendanceService.markAttendance({
+          studentId: entry.studentId,
+          classId,
+          sectionId: sectionId || entry.sectionId || null,
+          date: dateKey,
+          status: entry.status || "Present",
+          markedBy,
+          remarks: entry.remarks || null,
+          attendanceId,
+          action,
+        });
+        results.push(result);
+      } catch (error) {
+        const msg = String(error.message || "");
+        if (/already marked/i.test(msg)) {
+          const retry = await attendanceService.markAttendance({
             studentId: entry.studentId,
             classId,
             sectionId: sectionId || entry.sectionId || null,
-            date,
+            date: dateKey,
             status: entry.status || "Present",
             markedBy,
             remarks: entry.remarks || null,
-            attendanceId: entry.attendanceId || null,
-            action: entry.attendanceId ? 2 : 1,
-          })
-        )
-      );
-      return { success: true, message: "Bulk attendance saved successfully", results };
-    } catch (error) {
-      console.error("Error marking bulk attendance:", error);
-      throw error;
+            attendanceId: attendanceId || undefined,
+            action: 2,
+          });
+          results.push(retry);
+          continue;
+        }
+        throw error;
+      }
     }
+    return { success: true, message: "Bulk attendance saved successfully", results };
   },
 
   updateAttendance: async (attendanceId, updateData) => {
@@ -151,12 +191,23 @@ export const attendanceService = {
     }
   },
 
-  getAttendance: async ({ attendanceId, studentId } = {}) => {
+  getAttendance: async ({
+    attendanceId,
+    studentId,
+    classId,
+    sectionId,
+    date,
+  } = {}) => {
     try {
       const endpoint = attendanceId
         ? `${API_ENDPOINTS.ATTENDANCE}/${attendanceId}`
         : API_ENDPOINTS.ATTENDANCE;
-      const query = studentId ? `?${new URLSearchParams({ student_id: studentId })}` : "";
+      const params = new URLSearchParams();
+      if (studentId) params.set("student_id", studentId);
+      if (classId) params.set("class_id", classId);
+      if (sectionId) params.set("section_id", sectionId);
+      if (date) params.set("attendance_date", date);
+      const query = params.toString() ? `?${params.toString()}` : "";
       const data = await apiService.get(`${endpoint}${query}`);
       const attendance = listFromResponse(data);
       return { ...data, attendance, data: attendance };
@@ -166,27 +217,39 @@ export const attendanceService = {
     }
   },
 
-  getClassAttendance: async (classId, date, roster = []) => {
-    const data = await attendanceService.getAttendance();
+  getClassAttendance: async (classId, sectionId, date, roster = []) => {
+    const rosterList = Array.isArray(roster)
+      ? roster
+      : roster?.students || roster?.data || [];
+    const dateKey = toLocalDateKey(date);
+    const rosterIds = new Set(rosterList.map((s) => studentRosterKey(s)).filter(Boolean));
+
+    const data = await attendanceService.getAttendance({
+      classId,
+      date: dateKey,
+    });
+
     const records = data.attendance.filter((record) => {
       const sameClass = !classId || String(record.classId || "") === String(classId);
-      const recordDate = record.date
-        ? new Date(record.date).toISOString().split("T")[0]
-        : "";
-      const sameDate = !date || recordDate === date;
-      return sameClass && sameDate;
+      const sameDate = !dateKey || toLocalDateKey(record.date) === dateKey;
+      const inRoster =
+        !rosterIds.size || rosterIds.has(String(record.studentId || ""));
+      return sameClass && sameDate && inRoster;
     });
 
     const attendanceByStudent = new Map(
       records.map((record) => [String(record.studentId), record])
     );
 
-    const attendance = roster.map((student) => ({
-      student,
-      attendance: attendanceByStudent.get(String(student._id || student.id || student.studentId)) || null,
-    }));
+    const attendance = rosterList.map((student) => {
+      const sid = studentRosterKey(student);
+      return {
+        student,
+        attendance: attendanceByStudent.get(sid) || null,
+      };
+    });
 
-    return { attendance, rawAttendance: records };
+    return { attendance, rawAttendance: records, date: dateKey };
   },
 
   getStudentAttendance: async (studentId, startDate, endDate) => {
@@ -202,22 +265,80 @@ export const attendanceService = {
     };
   },
 
-  getMonthlyReport: async (classId, month, year) => {
+  getMonthlyReport: async (classKey, month, year) => {
+    const parsed = parseClassKey(classKey);
+    const classId = parsed?.classId ?? classKey;
+    const sectionId = parsed?.sectionId ?? null;
+    const academicYearId = parsed?.academicYearId ?? null;
+
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
-    const endDate = new Date(Number(year), Number(month), 0)
-      .toISOString()
-      .split("T")[0];
-    const data = await attendanceService.getAttendance();
-    const attendance = data.attendance.filter(
-      (record) =>
-        String(record.classId || "") === String(classId) &&
-        isWithinDateRange(record, startDate, endDate)
+    const endDate = toLocalDateKey(new Date(Number(year), Number(month), 0));
+
+    const rosterResponse = await studentService.getAllStudents({
+      classId,
+      sectionId: sectionId || undefined,
+      academicYearId: academicYearId || undefined,
+      limit: 500,
+    });
+    const roster = rosterResponse.students || [];
+    const rosterIds = new Set(
+      roster.map((s) => String(s._id || s.id || s.studentId)).filter(Boolean)
     );
+
+    const data = await attendanceService.getAttendance({ classId });
+    const attendance = data.attendance.filter((record) => {
+      const inMonth = isWithinDateRange(record, startDate, endDate);
+      const inRoster =
+        !rosterIds.size || rosterIds.has(String(record.studentId || ""));
+      return inMonth && inRoster;
+    });
+
+    const recordsByStudent = new Map();
+    attendance.forEach((record) => {
+      const sid = String(record.studentId);
+      if (!recordsByStudent.has(sid)) recordsByStudent.set(sid, []);
+      recordsByStudent.get(sid).push(record);
+    });
+
+    const studentAttendance = roster.map((student) => {
+      const sid = String(student._id || student.id || student.studentId);
+      const records = recordsByStudent.get(sid) || [];
+      const statistics = calculateStatistics(records);
+      const name =
+        [student.firstName, student.lastName].filter(Boolean).join(" ").trim() ||
+        student.name ||
+        "Student";
+      return {
+        student: {
+          name,
+          rollNo: student.rollNo || student.enrollmentNo || student.scholarNumber || "—",
+        },
+        statistics: {
+          totalDays: statistics.totalDays,
+          presentDays: statistics.presentDays,
+          absentDays: statistics.absentDays,
+          leaveDays: statistics.leaveDays,
+          lateDays: 0,
+          halfDays: 0,
+          attendancePercentage: statistics.attendancePercentage,
+        },
+      };
+    });
+
+    const averageAttendance = studentAttendance.length
+      ? Math.round(
+          studentAttendance.reduce(
+            (sum, row) => sum + (row.statistics.attendancePercentage || 0),
+            0
+          ) / studentAttendance.length
+        )
+      : 0;
 
     return {
       attendance,
-      totalStudents: new Set(attendance.map((record) => record.studentId)).size,
-      studentAttendance: [],
+      totalStudents: roster.length,
+      averageAttendance,
+      studentAttendance,
     };
   },
 };

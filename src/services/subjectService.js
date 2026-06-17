@@ -13,6 +13,15 @@ export const subjectService = {
     }
   },
 
+  getSubjectSummary: async () => {
+    try {
+      return await apiService.get(`${API_ENDPOINTS.SUBJECTS}/summary`);
+    } catch (error) {
+      console.error('Error fetching subject summary:', error);
+      throw error;
+    }
+  },
+
   // Get subject by ID
   getSubjectById: async (subjectId) => {
     try {
@@ -69,6 +78,27 @@ export const subjectService = {
   },
 
   // Get subjects by class
+  getSubjectAssignments: async (subjectId) => {
+    try {
+      return await apiService.get(`${API_ENDPOINTS.SUBJECTS}/${subjectId}/assignments`);
+    } catch (error) {
+      console.error('Error fetching subject assignments:', error);
+      throw error;
+    }
+  },
+
+  assignTeacherToSubject: async (subjectId, payload) => {
+    try {
+      return await apiService.post(
+        `${API_ENDPOINTS.SUBJECTS}/${subjectId}/assign-teacher`,
+        payload
+      );
+    } catch (error) {
+      console.error('Error assigning teacher to subject:', error);
+      throw error;
+    }
+  },
+
   getSubjectsByClass: async (classId) => {
     try {
       const data = await apiService.get(`${API_ENDPOINTS.SUBJECTS}/class/${classId}`);

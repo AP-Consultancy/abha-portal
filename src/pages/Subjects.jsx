@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon } from '@heroicons/react/24/outline';
 import { subjectService } from '../services/subjectService';
 import { API_BASE_URL } from '../utils/constants';
 import CSVUpload from '../components/common/CSVUpload';
+import SubjectTable from '../components/subjects/SubjectTable';
+import SubjectAssignModal from '../components/subjects/SubjectAssignModal';
 
 const Subjects = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -11,9 +13,11 @@ const Subjects = () => {
   const [error, setError] = useState(null);
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [editingSubject, setEditingSubject] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', code: '', grade: '', hoursPerWeek: 0, description: '' });
+  const [editForm, setEditForm] = useState({ name: '', code: '', grade: '', hoursPerWeek: 4, description: '' });
+  const [addForm, setAddForm] = useState({ name: '', code: '', grade: '', hoursPerWeek: 4, description: '' });
+  const [summary, setSummary] = useState(null);
+  const [assignSubject, setAssignSubject] = useState(null);
 
-  // Fetch subjects on component mount
   useEffect(() => {
     fetchSubjects();
   }, []);
@@ -21,8 +25,12 @@ const Subjects = () => {
   const fetchSubjects = async () => {
     try {
       setLoading(true);
-      const data = await subjectService.getAllSubjects();
+      const [data, summaryRes] = await Promise.all([
+        subjectService.getAllSubjects(),
+        subjectService.getSubjectSummary().catch(() => null),
+      ]);
       setSubjects(data.subjects || data || []);
+      setSummary(summaryRes?.summary || null);
       setError(null);
     } catch (err) {
       setError('Failed to fetch subjects');
@@ -125,135 +133,84 @@ const Subjects = () => {
               maxFileSize={5}
             />
             <div className="mt-2 text-sm text-gray-600">
-              Sample: server/sample_subject_upload.csv
+              Sample: <a href="/sample_subject_bulk_upload.csv" className="text-blue-600 underline" download>sample_subject_bulk_upload.csv</a>
             </div>
           </>
         )}
       </div>
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Subjects Management</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Subjects (master catalog)</h1>
+          <p className="text-sm text-gray-600 mt-1 max-w-3xl">
+            The <strong>subjects</strong> table stores the subject list. Use{" "}
+            <strong>Assign</strong> on each row to link a teacher + class + section, or use{" "}
+            <strong>Employees → Add Teacher</strong> for full teacher profiles.
+          </p>
+        </div>
         <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
+          type="button"
+          onClick={() => {
+            setAddForm({ name: '', code: '', grade: '', hoursPerWeek: 4, description: '' });
+            setShowAddModal(true);
+          }}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700 shrink-0"
         >
           <PlusIcon className="h-5 w-5" />
-          <span>Add Subject</span>
+          Add subject
         </button>
       </div>
 
-      {/* Subjects Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Subjects</p>
-              <p className="text-2xl font-bold text-gray-900">{subjects.length}</p>
-            </div>
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <span className="text-blue-600 font-semibold">📚</span>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+          <p className="text-sm text-gray-600">Subjects in catalog</p>
+          <p className="text-2xl font-bold text-gray-900">{summary?.totalSubjects ?? subjects.length}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Core Subjects</p>
-              <p className="text-2xl font-bold text-gray-900">{subjects.filter(s => s.type === 'core').length}</p>
-            </div>
-            <div className="bg-green-100 p-3 rounded-lg">
-              <span className="text-green-600 font-semibold">🎯</span>
-            </div>
-          </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+          <p className="text-sm text-gray-600">Used in at least one class</p>
+          <p className="text-2xl font-bold text-green-700">
+            {summary?.subjectsWithAssignments ??
+              subjects.filter((s) => s.hasAssignments).length}
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Elective Subjects</p>
-              <p className="text-2xl font-bold text-gray-900">{subjects.filter(s => s.type === 'elective').length}</p>
-            </div>
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <span className="text-purple-600 font-semibold">🎨</span>
-            </div>
-          </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+          <p className="text-sm text-gray-600">Not assigned to any class yet</p>
+          <p className="text-2xl font-bold text-amber-700">
+            {summary?.subjectsUnassigned ??
+              subjects.filter((s) => !s.hasAssignments).length}
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Hours/Week</p>
-              <p className="text-2xl font-bold text-gray-900">{subjects.reduce((sum, s) => sum + (s.hours || 0), 0)}</p>
-            </div>
-            <div className="bg-yellow-100 p-3 rounded-lg">
-              <span className="text-yellow-600 font-semibold">⏰</span>
-            </div>
-          </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+          <p className="text-sm text-gray-600">Catalog hours / week (sum)</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {summary?.totalHoursPerWeek ??
+              subjects.reduce((sum, s) => sum + Number(s.hoursPerWeek || 0), 0)}
+          </p>
         </div>
       </div>
 
-      {/* Subjects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {subjects.map((subject) => (
-          <div key={subject._id || subject.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
-              <h3 className="text-lg font-semibold text-white">{subject.name}</h3>
-              <p className="text-indigo-100 text-sm">{subject.code}</p>
-            </div>
-            
-            <div className="p-6">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">Teacher</span>
-                  <span className="text-sm text-gray-900">{subject.teacher?.name || subject.teacher || 'Not Assigned'}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">Grade</span>
-                  <span className="text-sm text-gray-900">{subject.grade || 'Not Specified'}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">Hours/Week</span>
-                  <span className="text-sm text-gray-900">{subject.hours || 0}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">Students</span>
-                  <span className="text-sm text-gray-900">{subject.students?.length || subject.students || 0}</span>
-                </div>
-                
-                <div>
-                  <span className="text-sm font-medium text-gray-600">Description</span>
-                  <p className="text-sm text-gray-900 mt-1">{subject.description || 'No description available'}</p>
-                </div>
-              </div>
-              
-              <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-200">
-                <button className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                  <EyeIcon className="h-5 w-5" />
-                </button>
-                <button className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-50 transition-colors">
-                  <PencilIcon className="h-5 w-5" onClick={() => {
-                    setEditingSubject(subject);
-                    setEditForm({
-                      name: subject.name || '',
-                      code: subject.code || '',
-                      grade: subject.grade || '',
-                      hoursPerWeek: subject.hoursPerWeek || subject.hours || 0,
-                      description: subject.description || ''
-                    });
-                  }} />
-                </button>
-                <button 
-                  onClick={() => handleDeleteSubject(subject._id || subject.id)}
-                  className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <SubjectTable
+        subjects={subjects}
+        onAssign={(subject) => setAssignSubject(subject)}
+        onEdit={(subject) => {
+          setEditingSubject(subject);
+          setEditForm({
+            name: subject.name || '',
+            code: subject.code || '',
+            grade: subject.grade || '',
+            hoursPerWeek: subject.hoursPerWeek ?? 4,
+            description: subject.description || '',
+          });
+        }}
+        onDelete={(subject) => handleDeleteSubject(subject._id || subject.id)}
+      />
+
+      {assignSubject && (
+        <SubjectAssignModal
+          subject={assignSubject}
+          onClose={() => setAssignSubject(null)}
+          onSaved={() => fetchSubjects()}
+        />
+      )}
 
       {/* Add Subject Modal */}
       {showAddModal && (
@@ -262,45 +219,73 @@ const Subjects = () => {
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowAddModal(false)}></div>
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Subject</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Add subject to catalog</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  This only creates a row in <code>subjects</code>. Link teachers via Employees.
+                </p>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject Name *</label>
+                    <input
+                      type="text"
+                      value={addForm.name}
+                      onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject Code</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
+                    <input
+                      type="text"
+                      value={addForm.code}
+                      onChange={(e) => setAddForm({ ...addForm, code: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option>Select Teacher</option>
-                      <option>Dr. Jane Smith</option>
-                      <option>Mr. Robert Johnson</option>
-                      <option>Ms. Sarah Wilson</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Hours per Week</label>
-                    <input type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+                      <input
+                        type="text"
+                        value={addForm.grade}
+                        onChange={(e) => setAddForm({ ...addForm, grade: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Hours / week</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={addForm.hoursPerWeek}
+                        onChange={(e) =>
+                          setAddForm({ ...addForm, hoursPerWeek: Number(e.target.value) })
+                        }
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={3}></textarea>
+                    <textarea
+                      value={addForm.description}
+                      onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      rows={3}
+                    />
                   </div>
                 </div>
               </div>
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
-                  onClick={() => setShowAddModal(false)}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  type="button"
+                  onClick={async () => {
+                    await handleCreateSubject(addForm);
+                    setShowAddModal(false);
+                  }}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 sm:ml-3 sm:w-auto sm:text-sm"
                 >
-                  Add Subject
+                  Save
                 </button>
                 <button
                   onClick={() => setShowAddModal(false)}

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/constants';
+import { feeService } from '../services/feeService';
+import { formatCurrency } from '../utils/feeUtils';
+import { FeeStatusBadge } from './students/StudentFeesPanel';
 import {
   BookOpenIcon,
   CalendarIcon,
@@ -22,6 +25,7 @@ const StudentDashboard = () => {
     todayTimetable: [],
     announcements: []
   });
+  const [feeData, setFeeData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,24 +35,31 @@ const StudentDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const token = localStorage.getItem('token');
-      // Fetch student-specific dashboard data
-      const response = await fetch(`${API_BASE_URL}/api/students/dashboard`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      const [dashboardRes, fees] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/students/dashboard`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        feeService.getMyFees().catch(() => null),
+      ]);
+
+      if (dashboardRes.ok) {
+        const data = await dashboardRes.json();
         setDashboardData(data);
       }
+      if (fees) setFeeData(fees);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const remainingFee =
+    feeData?.summary?.remainingFee ?? feeData?.summary?.totalPending ?? 0;
+  const feeStatus = feeData?.feeStatus ?? feeData?.summary?.feeStatus;
 
   const studentData = user?.userData || user?.student;
 
@@ -119,16 +130,19 @@ const StudentDashboard = () => {
         </div>
         
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <CurrencyDollarIcon className="h-6 w-6 text-yellow-600" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <CurrencyDollarIcon className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-500">Remaining Fees</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {formatCurrency(remainingFee)}
+                </p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-500">Pending Fees</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                ₹{dashboardData.pendingFees?.amount || '0'}
-              </p>
-            </div>
+            {feeStatus && <FeeStatusBadge status={feeStatus} />}
           </div>
         </div>
         
@@ -140,7 +154,10 @@ const StudentDashboard = () => {
             <div className="ml-4">
               <p className="text-sm text-gray-500">Class</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {studentData?.className || 'N/A'} - {studentData?.section || ''}
+                {dashboardData.classInfo?.className || studentData?.className || 'N/A'}
+                {dashboardData.classInfo?.section || studentData?.section
+                  ? ` - ${dashboardData.classInfo?.section || studentData?.section}`
+                  : ''}
               </p>
             </div>
           </div>
@@ -217,17 +234,18 @@ const StudentDashboard = () => {
       </div>
 
       {/* Alerts & Notifications */}
-      {(dashboardData.pendingFees?.amount > 0 || dashboardData.recentAttendance?.percentage < 75) && (
+      {(Number(remainingFee) > 0 || dashboardData.recentAttendance?.percentage < 75) && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Important Alerts</h2>
           <div className="space-y-3">
-            {dashboardData.pendingFees?.amount > 0 && (
+            {Number(remainingFee) > 0 && (
               <div className="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mr-3" />
                 <div>
                   <p className="font-medium text-yellow-800">Pending Fee Payment</p>
                   <p className="text-sm text-yellow-600">
-                    You have ₹{dashboardData.pendingFees.amount} pending fees. Please pay by {dashboardData.pendingFees.dueDate}
+                    You have {formatCurrency(remainingFee)} remaining for this academic year.
+                    {feeData?.currentMonthStatus === 'PENDING' && ' This month\'s fee is still pending.'}
                   </p>
                 </div>
               </div>

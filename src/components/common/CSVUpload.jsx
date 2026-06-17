@@ -10,7 +10,8 @@ const CSVUpload = ({
   uploadEndpoint = "",
   entityType = "data", // e.g., "students", "teachers", "exams", etc.
   showCredentialExport = false, // Show credential export button for students/teachers
-  credentialData = null // Login credentials data to export
+  credentialData = null, // Login credentials data to export
+  sampleDownloadUrl = "",
 }) => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -126,6 +127,20 @@ const CSVUpload = ({
     setFile(null);
     setUploadStatus(null);
   };
+
+  const instructionLines =
+    entityType === "teachers"
+      ? [
+          "Required: First Name, Email, Employee ID, Qualification, Joining Date, Class, Section, Subject",
+          "Class: use class name (e.g. 8th) or class_id (e.g. 11). Section: A, B, or C",
+          "Use Subject ID or subject name (Mathematics, Science, English, Hindi, Computer). Dates must be YYYY-MM-DD",
+          "Default login password = employee ID",
+        ]
+      : [
+          "Required: Scholar No, First Name, Last Name, Gender, Date of Birth, Class, Section",
+          "Class: use class name (e.g. 8th) or class_id (e.g. 11). Section: A, B, or C",
+          "Dates must be YYYY-MM-DD. Default login password = scholar number",
+        ];
 
   // Export login credentials as CSV
   const exportCredentials = () => {
@@ -269,12 +284,21 @@ const CSVUpload = ({
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
         <h4 className="text-sm font-medium text-gray-900 mb-2">Instructions:</h4>
         <ul className="text-xs text-gray-600 space-y-1">
-          <li>• Ensure your CSV file has the correct column headers</li>
-          <li>• All required fields must be filled</li>
-          <li>• Dates should be in YYYY-MM-DD format</li>
-          <li>• Maximum file size: {maxFileSize}MB</li>
-          <li>• Supported formats: {acceptedFileTypes}</li>
+          {instructionLines.map((line) => (
+            <li key={line}>• {line}</li>
+          ))}
+          <li>• Maximum file size: {maxFileSize}MB · Formats: {acceptedFileTypes}</li>
         </ul>
+        {sampleDownloadUrl && (
+          <a
+            href={sampleDownloadUrl}
+            download
+            className="inline-flex items-center mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            <DocumentArrowDownIcon className="h-4 w-4 mr-1" />
+            Download sample CSV template
+          </a>
+        )}
       </div>
     </div>
   );

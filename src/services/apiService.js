@@ -29,6 +29,9 @@ class ApiService {
         ...options.headers,
       },
     };
+    if (options.cache) {
+      config.cache = options.cache;
+    }
 
     try {
       const response = await fetch(url, config);
@@ -43,7 +46,18 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        let message =
+          errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+        if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          const preview = errorData.errors
+            .slice(0, 5)
+            .map((e) => `Row ${e.row}: ${(e.errors || []).join("; ")}`)
+            .join(" | ");
+          const more =
+            errorData.errors.length > 5 ? ` (+${errorData.errors.length - 5} more)` : "";
+          message = `${message} — ${preview}${more}`;
+        }
+        throw new Error(message);
       }
 
       return await response.json();
@@ -54,8 +68,8 @@ class ApiService {
   }
 
   // GET request
-  async get(endpoint) {
-    return this.request(endpoint, { method: 'GET' });
+  async get(endpoint, options = {}) {
+    return this.request(endpoint, { method: "GET", ...options });
   }
 
   // POST request

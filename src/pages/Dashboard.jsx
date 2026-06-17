@@ -62,7 +62,15 @@ const Dashboard = () => {
       { name: 'Revenue (paid)', value: `₹${(s.revenue || 0).toLocaleString('en-IN')}`, icon: CurrencyDollarIcon, color: 'bg-yellow-500', change: '' },
       { name: "Today's Attendance", value: attendancePct, icon: ClockIcon, color: 'bg-purple-500', change: '' },
       { name: 'Classes', value: String(s.totalClasses || 0), icon: AcademicCapIcon, color: 'bg-pink-500', change: '' },
-      { name: 'Pending Fees', value: `₹${((summary?.stats?.pendingFees) || 0).toLocaleString('en-IN')}`, icon: ArrowTrendingUpIcon, color: 'bg-indigo-500', change: '' },
+      {
+        name: 'Outstanding Fees',
+        value: `₹${((summary?.stats?.pendingFees) || 0).toLocaleString('en-IN')}`,
+        icon: ArrowTrendingUpIcon,
+        color: 'bg-indigo-500',
+        change: summary?.stats?.feeSummary?.studentsWithoutFeeAssignment
+          ? `${summary.stats.feeSummary.studentsWithoutFeeAssignment} students not on fee plan`
+          : '',
+      },
     ];
   }, [summary]);
 
@@ -147,7 +155,9 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600">{stat.name}</p>
                 <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-sm text-green-600 font-medium">{stat.change} from last month</p>
+                {stat.change ? (
+                  <p className="text-sm text-green-600 font-medium">{stat.change} from last month</p>
+                ) : null}
               </div>
               <div className={`${stat.color} p-3 rounded-lg`}>
                 <stat.icon className="h-6 w-6 text-white" />

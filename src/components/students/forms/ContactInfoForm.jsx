@@ -28,6 +28,18 @@ const ContactInfoForm = ({ formData, handleInputChange }) => {
         </div>
 
         <div>
+          <label className={labelClasses}>Alternate Contact Number</label>
+          <input
+            type="tel"
+            name="alternateContactNo"
+            value={formData.alternateContactNo}
+            onChange={handleInputChange}
+            className={inputClasses}
+            placeholder="+91 98765 43210"
+          />
+        </div>
+
+        <div>
           <label className={labelClasses}>Email Address</label>
           <div className="relative">
             <EnvelopeIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />

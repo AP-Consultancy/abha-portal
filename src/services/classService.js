@@ -2,16 +2,27 @@ import apiService from './apiService';
 import { API_ENDPOINTS } from '../utils/constants';
 
 export const classService = {
-  // Get all classes (admin only)
-  getAllClasses: async () => {
+  getAllClasses: async (academicYearId = null) => {
     try {
-      const data = await apiService.get(API_ENDPOINTS.CLASSES);
+      const query = academicYearId
+        ? `?academic_year_id=${encodeURIComponent(academicYearId)}`
+        : "";
+      const data = await apiService.get(`${API_ENDPOINTS.CLASSES}${query}`);
       return data;
     } catch (error) {
-      console.error('Error fetching classes:', error);
+      console.error("Error fetching classes:", error);
       throw error;
     }
   },
+
+  getClassDashboard: async (academicYearId = null) => {
+    const query = academicYearId
+      ? `?academic_year_id=${encodeURIComponent(academicYearId)}`
+      : "";
+    return apiService.get(`${API_ENDPOINTS.CLASSES}/dashboard${query}`);
+  },
+
+  getClassSummary: async () => apiService.get(`${API_ENDPOINTS.CLASSES}/summary`),
 
   // Get student's class information
   getStudentClass: async (studentId) => {

@@ -3,7 +3,6 @@ import { UserIcon, CalendarIcon } from "@heroicons/react/24/outline";
 import {
   FORM_STYLES,
   GENDER_OPTIONS,
-  BLOOD_GROUP_OPTIONS,
 } from "../../../utils/constants";
 
 const BasicInfoForm = ({ formData, handleInputChange }) => {
@@ -91,67 +90,50 @@ const BasicInfoForm = ({ formData, handleInputChange }) => {
         </div>
 
         <div>
-          <label className={labelClasses}>Blood Group</label>
-          <select
-            name="bloodGroup"
-            value={formData.bloodGroup}
-            onChange={handleInputChange}
-            className={inputClasses}
-          >
-            <option value="">Select blood group</option>
-            {BLOOD_GROUP_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className={labelClasses}>Religion</label>
+          <label className={labelClasses}>Aadhaar No</label>
           <input
             type="text"
-            name="religion"
-            value={formData.religion}
+            name="aadhaarNo"
+            value={formData.aadhaarNo}
             onChange={handleInputChange}
             className={inputClasses}
-            placeholder="Enter religion"
+            placeholder="12 digit Aadhaar"
           />
         </div>
 
         <div>
-          <label className={labelClasses}>Caste</label>
+          <label className={labelClasses}>SSSMID</label>
           <input
             type="text"
-            name="caste"
-            value={formData.caste}
+            name="sssmid"
+            value={formData.sssmid}
             onChange={handleInputChange}
             className={inputClasses}
-            placeholder="Enter caste"
+            placeholder="SSSMID"
           />
         </div>
 
         <div>
-          <label className={labelClasses}>Nationality</label>
+          <label className={labelClasses}>PAN No</label>
           <input
             type="text"
-            name="nationality"
-            value={formData.nationality}
+            name="panNo"
+            value={formData.panNo}
             onChange={handleInputChange}
             className={inputClasses}
-            placeholder="Indian"
+            placeholder="PAN number"
           />
         </div>
 
         <div>
-          <label className={labelClasses}>Photo URL</label>
+          <label className={labelClasses}>APAAR ID</label>
           <input
-            type="url"
-            name="photoUrl"
-            value={formData.photoUrl}
+            type="text"
+            name="apaarId"
+            value={formData.apaarId}
             onChange={handleInputChange}
             className={inputClasses}
-            placeholder="https://example.com/photo.jpg"
+            placeholder="APAAR ID"
           />
         </div>
       </div>

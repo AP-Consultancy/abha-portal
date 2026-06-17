@@ -12,6 +12,33 @@ export const formatDateForInput = (dateString) => {
   return new Date(dateString).toISOString().split("T")[0];
 };
 
+export const sectionIdToLabel = (sectionId, classId) => {
+  const sid = Number(sectionId);
+  const cid = Number(classId);
+  if (!Number.isFinite(sid) || !Number.isFinite(cid)) return "";
+  if (sid === cid) return "A";
+  if (sid === cid + 15) return "B";
+  if (sid === cid + 30) return "C";
+  return "";
+};
+
+/** Map section letter + class to PostgreSQL section_id (A=class, B=class+15, C=class+30). */
+export const resolveSectionIdForClass = (classId, sectionLetter) => {
+  const cid = Number(classId);
+  const letter = String(sectionLetter || "").trim().toUpperCase();
+  if (!Number.isFinite(cid) || !letter) return null;
+  if (letter === "A") return cid;
+  if (letter === "B") return cid + 15;
+  if (letter === "C") return cid + 30;
+  return null;
+};
+
+export const SECTION_FILTER_OPTIONS = [
+  { value: "A", label: "A" },
+  { value: "B", label: "B" },
+  { value: "C", label: "C" },
+];
+
 export const getStatusBadgeClasses = (status) => {
   const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
   if (status === "Active") {
@@ -38,10 +65,9 @@ export const extractFilterOptions = (studentsData) => {
   };
 
   const classes = toOptions(studentsData, "classId", "className");
-  const sections = toOptions(studentsData, "sectionId", "section");
   const years = toOptions(studentsData, "academicYearId", "academicYear");
 
-  return { classes, sections, years };
+  return { classes, sections: SECTION_FILTER_OPTIONS, years };
 };
 
 export const filterStudents = (students, filters) => {
@@ -57,12 +83,15 @@ export const filterStudents = (students, filters) => {
     );
   }
 
-  // Apply section filter
+  // Apply section filter (A/B/C letter or legacy numeric section_id)
   if (selectedSection) {
-    filtered = filtered.filter(
-      (student) =>
-        String(student.sectionId || student.section) === String(selectedSection)
-    );
+    filtered = filtered.filter((student) => {
+      const letter = sectionIdToLabel(student.sectionId, student.classId);
+      if (["A", "B", "C"].includes(String(selectedSection).toUpperCase())) {
+        return letter === String(selectedSection).toUpperCase();
+      }
+      return String(student.sectionId || student.section) === String(selectedSection);
+    });
   }
 
   // Apply year filter
@@ -99,17 +128,25 @@ export const transformStudentForEdit = (student) => {
     lastName: student.lastName || "",
     gender: student.gender || "",
     dob: formatDateForInput(student.dob),
-    bloodGroup: student.bloodGroup || "",
-    religion: student.religion || "",
-    caste: student.caste || "",
-    nationality: student.nationality || "",
-    photoUrl: student.photoUrl || "",
-    className: student.className || "",
-    section: student.section || "",
-    academicYear: student.academicYear || "",
+    aadhaarNo: student.aadhaarNo || "",
+    sssmid: student.sssmid || "",
+    panNo: student.panNo || "",
+    apaarId: student.apaarId || "",
+    // AcademicInfoForm expects `className` to be the class_id (value from CLASS_OPTIONS)
+    className: String(student.classId || student.class_id || ""),
+    section:
+      sectionIdToLabel(
+        student.sectionId || student.section_id,
+        student.classId || student.class_id
+      ) ||
+      (["A", "B", "C"].includes(String(student.section || "").toUpperCase())
+        ? String(student.section).toUpperCase()
+        : ""),
     admissionDate: formatDateForInput(student.admissionDate),
+    admissionNo: student.admissionNo || student.enrollmentNo || student.admission_no || student.scholarNumber || "",
     rollNo: student.rollNo || "",
     phone: student.phone || "",
+    alternateContactNo: student.alternateContactNo || "",
     email: student.email || "",
     address: {
       street: student.address?.street || "",
@@ -130,29 +167,12 @@ export const transformStudentForEdit = (student) => {
       email: student.mother?.email || "",
       relation: "Mother",
     },
-    guardian: {
-      name: student.guardian?.name || "",
-      phone: student.guardian?.phone || "",
-      email: student.guardian?.email || "",
-      relation: student.guardian?.relation || "",
-    },
-    transportOpted: student.transportOpted || false,
-    busRoute: student.busRoute || "",
-    pickupPoint: student.pickupPoint || "",
-    medicalConditions: student.medicalConditions?.join(", ") || "",
-    status: student.status || "Active",
-    createdBy: student.createdBy || "",
-    remarks: student.remarks || "",
   };
 };
 
 export const transformFormDataForUpdate = (formData) => {
   return {
     ...formData,
-    medicalConditions: formData.medicalConditions
-      .split(",")
-      .map((condition) => condition.trim())
-      .filter(Boolean),
     father: {
       ...formData.father,
       relation: "Father",

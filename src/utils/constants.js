@@ -27,8 +27,37 @@ export const SECTION_OPTIONS = [
   { value: "A", label: "A" },
   { value: "B", label: "B" },
   { value: "C", label: "C" },
-  { value: "D", label: "D" },
-  { value: "E", label: "E" },
+];
+
+export const SUBJECT_OPTIONS = [
+  { value: "1", label: "Mathematics" },
+  { value: "2", label: "Science" },
+  { value: "3", label: "English" },
+  { value: "4", label: "Hindi" },
+  { value: "5", label: "Computer" },
+];
+
+export const ACADEMIC_YEAR_OPTIONS = [
+  { value: "1", label: "2026-27", isActive: true },
+];
+
+// Mirrors your PostgreSQL `classes` master table (class_id -> class_name)
+export const CLASS_OPTIONS = [
+  { value: "1", label: "Nursery" },
+  { value: "2", label: "KG1" },
+  { value: "3", label: "KG2" },
+  { value: "4", label: "1st" },
+  { value: "5", label: "2nd" },
+  { value: "6", label: "3rd" },
+  { value: "7", label: "4th" },
+  { value: "8", label: "5th" },
+  { value: "9", label: "6th" },
+  { value: "10", label: "7th" },
+  { value: "11", label: "8th" },
+  { value: "12", label: "9th" },
+  { value: "13", label: "10th" },
+  { value: "14", label: "11th" },
+  { value: "15", label: "12th" },
 ];
 
 export const STATUS_OPTIONS = [
@@ -51,17 +80,17 @@ export const INITIAL_FORM_DATA = {
   lastName: "",
   gender: "",
   dob: "",
-  bloodGroup: "",
-  religion: "",
-  caste: "",
-  nationality: "",
-  photoUrl: "",
+  aadhaarNo: "",
+  sssmid: "",
+  panNo: "",
+  apaarId: "",
   className: "",
   section: "",
-  academicYear: "",
   admissionDate: "",
+  admissionNo: "",
   rollNo: "",
   phone: "",
+  alternateContactNo: "",
   email: "",
   address: {
     street: "",
@@ -88,13 +117,6 @@ export const INITIAL_FORM_DATA = {
     email: "",
     relation: "",
   },
-  transportOpted: false,
-  busRoute: "",
-  pickupPoint: "",
-  medicalConditions: "",
-  status: STUDENT_STATUS.ACTIVE,
-  createdBy: "",
-  remarks: "",
 };
 
 export const API_BASE_URL =
@@ -115,6 +137,7 @@ export const API_ENDPOINTS = {
   // Teacher endpoints
   TEACHERS: "/api/teachers",
   MANAGE_TEACHER: "/api/teachers/manage",
+  TEACHER_BULK_UPLOAD: "/api/teachers/bulk-upload",
   // Admin endpoints
   ADMIN_PROFILE: "/api/admin/profile",
   ADMIN_DASHBOARD: "/api/admin/dashboard",
@@ -123,7 +146,9 @@ export const API_ENDPOINTS = {
   MANAGE_ATTENDANCE: "/api/attendance/manage",
   // Fee endpoints
   FEES: "/api/fees",
+  FEES_ME: "/api/fees/me",
   PAYMENTS: "/api/payments",
+  MANAGE_PAYMENT: "/api/payments/manage",
   // Class endpoints
   CLASSES: "/api/classes",
   // Subject endpoints
@@ -132,6 +157,10 @@ export const API_ENDPOINTS = {
   EXAMS: "/api/exams",
   EXAM_RESULTS: (examId) => `/api/exams/${examId}/results`,
   STUDENT_EXAM_RESULTS: (studentId) => `/api/exams/student/${studentId}/results`,
+  TIMETABLE_CLASS: (classId) => `/api/timetable/class/${classId}`,
+  TIMETABLE_STUDENT: (id) => `/api/timetable/student/${id}`,
+  TIMETABLE_TEACHER: (id) => `/api/timetable/teacher/${id}`,
+  STUDENT_DASHBOARD: "/api/students/dashboard",
   // Homework endpoints
   HOMEWORK: "/api/homework",
   // Promotion endpoints

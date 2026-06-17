@@ -18,13 +18,13 @@ const RoleAwareClasses = () => {
         let data;
         
         if (userRole === 'student') {
-          const studentId = user?.userData?._id || user?.student?._id;
+          const studentId = user?.userData?.id || user?.userData?._id || user?.student?._id;
           if (studentId) {
             const response = await classService.getStudentClass(studentId);
             data = response.class ? [response.class] : [];
           }
         } else if (userRole === 'teacher' || userRole === 'employee') {
-          const teacherId = user?.userData?._id || user?.teacher?._id;
+          const teacherId = user?.userData?.id || user?.userData?._id || user?.teacher?._id;
           if (teacherId) {
             const response = await classService.getTeacherClasses(teacherId);
             data = response.classes || [];

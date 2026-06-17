@@ -10,7 +10,7 @@ const ParentInfoForm = ({ formData, handleInputChange }) => {
       <div className="flex items-center mb-6">
         <UsersIcon className="w-5 h-5 text-yellow-600 mr-2" />
         <h2 className="text-xl font-semibold text-gray-900">
-          Parent/Guardian Information
+          Parent Information
         </h2>
       </div>
 
@@ -106,61 +106,6 @@ const ParentInfoForm = ({ formData, handleInputChange }) => {
         </div>
       </div>
 
-      {/* Guardian Info */}
-      <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Guardian Information (Optional)
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div>
-            <label className={labelClasses}>Guardian's Name</label>
-            <input
-              type="text"
-              name="guardian.name"
-              value={formData.guardian.name}
-              onChange={handleInputChange}
-              className={inputClasses}
-              placeholder="Enter guardian's name"
-            />
-          </div>
-
-          <div>
-            <label className={labelClasses}>Guardian's Phone</label>
-            <input
-              type="tel"
-              name="guardian.phone"
-              value={formData.guardian.phone}
-              onChange={handleInputChange}
-              className={inputClasses}
-              placeholder="+91 98765 43210"
-            />
-          </div>
-
-          <div>
-            <label className={labelClasses}>Guardian's Email</label>
-            <input
-              type="email"
-              name="guardian.email"
-              value={formData.guardian.email}
-              onChange={handleInputChange}
-              className={inputClasses}
-              placeholder="guardian@example.com"
-            />
-          </div>
-
-          <div>
-            <label className={labelClasses}>Relation</label>
-            <input
-              type="text"
-              name="guardian.relation"
-              value={formData.guardian.relation}
-              onChange={handleInputChange}
-              className={inputClasses}
-              placeholder="Uncle, Aunt, etc."
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

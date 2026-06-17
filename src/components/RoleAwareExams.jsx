@@ -26,7 +26,7 @@ const RoleAwareExams = () => {
         let data;
 
         if (userRole === "student") {
-          const studentId = user?.userData?._id || user?.student?._id;
+          const studentId = user?.userData?.id || user?.userData?._id || user?.student?._id;
           if (studentId) {
             const response = await examService.getStudentExams(studentId);
             data = response.exams || [];
@@ -34,7 +34,7 @@ const RoleAwareExams = () => {
             setFeeStatus(response.feeStatus || null);
           }
         } else if (userRole === "teacher" || userRole === "employee") {
-          const teacherId = user?.userData?._id || user?.teacher?._id;
+          const teacherId = user?.userData?.id || user?.userData?._id || user?.teacher?._id;
           if (teacherId) {
             const response = await examService.getTeacherExams(teacherId);
             data = response.exams || [];

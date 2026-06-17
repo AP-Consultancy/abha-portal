@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useStudents } from "../../hooks/useStudents";
 import { useStudentFilters } from "../../hooks/useStudentFilters";
 import { transformStudentForEdit } from "../../utils/studentUtils";
-import { INITIAL_FORM_DATA, API_BASE_URL, API_ENDPOINTS } from "../../utils/constants";
+import { INITIAL_FORM_DATA } from "../../utils/constants";
+import { studentService } from "../../services/studentService";
 
 // Components
 import LoadingSpinner from "../common/LoadingSpinner";
@@ -12,13 +13,18 @@ import StudentHeader from "./StudentHeader";
 import StudentFilters from "./StudentFilters";
 import StudentTable from "./StudentTable";
 import StudentModal from "./StudentModal";
+import StudentPagination from "./StudentPagination";
+import { STUDENT_PAGE_SIZE } from "../../services/studentService";
 
 const Students = () => {
-  // Custom hooks
   const {
     students,
     loading,
     error,
+    page,
+    setPage,
+    total,
+    totalPages,
     filterOptions,
     fetchStudents,
     updateStudent,
@@ -41,12 +47,27 @@ const Students = () => {
   } = useStudentFilters(students);
 
   useEffect(() => {
+    if (selectedSection && !selectedClass) {
+      setSelectedSection("");
+    }
+    setPage(1);
     fetchStudents({
       classId: selectedClass,
-      sectionId: selectedSection,
+      section: selectedClass ? selectedSection : "",
       academicYearId: selectedYear,
+      page: 1,
     });
   }, [selectedClass, selectedSection, selectedYear]);
+
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    fetchStudents({
+      classId: selectedClass,
+      section: selectedSection,
+      academicYearId: selectedYear,
+      page: nextPage,
+    });
+  };
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -58,6 +79,7 @@ const Students = () => {
   // CSV Upload state
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [uploadedCredentials, setUploadedCredentials] = useState(null);
+  const [uploadSummary, setUploadSummary] = useState("");
 
   const downloadCredentialsCsv = () => {
     if (!uploadedCredentials || uploadedCredentials.length === 0) return;
@@ -83,71 +105,35 @@ const Students = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // CSV Upload handler
-  const handleCSVUpload = async (formData, file) => {
-    try {
-      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.STUDENT_BULK_UPLOAD}`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: formData,
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Upload failed';
-        try {
-          const errorData = await response.json();
-          if (errorData?.message) errorMessage = errorData.message;
-          if (Array.isArray(errorData?.errors) && errorData.errors.length > 0) {
-            const preview = errorData.errors.slice(0, 5)
-              .map(e => `Row ${e.row}: ${(e.errors || []).join('; ')}`)
-              .join(' | ');
-            const more = errorData.errors.length > 5 ? ` (+${errorData.errors.length - 5} more)` : '';
-            errorMessage = `${errorMessage}${preview ? ` - ${preview}${more}` : ''}`;
-          }
-        } catch (e) {
-          try {
-            const text = await response.text();
-            if (text) errorMessage = text;
-          } catch (_) {}
-        }
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json().catch(async () => {
-        try {
-          const text = await response.text();
-          return text ? { message: text } : {};
-        } catch (_) {
-          return {};
-        }
-      });
-      console.log('Upload result:', result);
-      
-      // If backend processed but all rows failed, surface a clear error to UI
-      if (typeof result.successful === 'number' && typeof result.failed === 'number') {
-        if (result.successful === 0 && result.failed > 0) {
-          const preview = (result.failedStudents || []).slice(0, 5)
-            .map((e) => `Row ${e.row}: ${String(e.reason || (e.errors || []).join('; '))}`)
-            .join(' | ');
-          const more = (result.failedStudents?.length || 0) > 5 
-            ? ` (+${result.failedStudents.length - 5} more)` 
-            : '';
-          throw new Error(`All rows failed (${result.failed}/${result.total}). ${preview}${more}`);
-        }
-      }
-      
-      // Store credentials for export if provided
-      if (result.credentials && result.credentials.length > 0) {
-        setUploadedCredentials(result.credentials);
-      }
-      
-      // Refresh the students list after successful upload
-      await fetchStudents();
-    } catch (error) {
-      console.error('CSV upload error:', error);
-      throw error;
+  const handleCSVUpload = async (_formData, file) => {
+    if (!file) {
+      throw new Error("Please select a CSV file to upload.");
     }
+
+    setUploadSummary("");
+    const result = await studentService.bulkUploadStudents(file);
+
+    if (result?.credentials?.length > 0) {
+      setUploadedCredentials(result.credentials);
+    }
+
+    setUploadSummary(result?.message || "Upload completed.");
+
+    if (result?.failed > 0) {
+      const preview = (result.failedStudents || [])
+        .slice(0, 3)
+        .map((f) => `Row ${f.row}: ${f.reason}`)
+        .join(" | ");
+      throw new Error(`${result.message}${preview ? ` — ${preview}` : ""}`);
+    }
+
+    setPage(1);
+    await fetchStudents({
+      classId: "",
+      section: "",
+      academicYearId: "",
+      page: 1,
+    });
   };
 
   // Modal handlers
@@ -169,10 +155,10 @@ const Students = () => {
           closeModal();
         }, 2000);
       } else {
-        alert(`Failed to update student: ${result.error}`);
+        alert(`Failed to update student: ${result.error || "Please try again."}`);
       }
     } catch (error) {
-      alert("Failed to update student. Please try again.");
+      alert(`Failed to update student: ${error.message || "Please try again."}`);
     } finally {
       setIsUpdating(false);
     }
@@ -221,7 +207,7 @@ const Students = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <StudentHeader
-          totalStudents={students.length}
+          totalStudents={total}
           filteredStudents={filteredStudents.length}
         />
 
@@ -255,13 +241,20 @@ const Students = () => {
             </button>
           </div>
           
+          {uploadSummary && (
+            <p className="mb-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              {uploadSummary}
+            </p>
+          )}
+
           {showCSVUpload && (
             <CSVUpload
               onUpload={handleCSVUpload}
               title="Upload Student Data"
-              description="Upload a CSV or Excel file to import multiple students at once"
+              description="Upload CSV with Class Name (e.g. 8th, KG1, 10th) and Section (A, B, C) — not database ids. Fees are assigned from the class fee structure."
               entityType="students"
-              acceptedFileTypes=".csv,.xlsx,.xls,.xlsm,.xlsb,.xlsv"
+              acceptedFileTypes=".csv"
+              sampleDownloadUrl="/sample_student_bulk_upload.csv"
               maxFileSize={10}
               showCredentialExport={true}
               credentialData={uploadedCredentials}
@@ -294,11 +287,21 @@ const Students = () => {
           onDelete={handleDelete}
         />
 
-        {/* Footer */}
-        <div className="mt-6 bg-white rounded-lg shadow-lg p-4">
+        <StudentPagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          limit={STUDENT_PAGE_SIZE}
+          onPageChange={handlePageChange}
+          loading={loading}
+        />
+
+        <div className="mt-4 bg-white rounded-lg shadow-lg p-4">
           <div className="flex justify-between items-center text-sm text-gray-500">
             <span>
-              Showing {filteredStudents.length} of {students.length} students
+              {searchTerm.trim()
+                ? `${filteredStudents.length} match(es) on this page`
+                : `Page ${page} of ${totalPages || 1} · ${total} total students`}
             </span>
             <span>Last updated: {new Date().toLocaleDateString("en-IN")}</span>
           </div>

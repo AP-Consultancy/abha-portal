@@ -10,7 +10,6 @@ import { AppProvider } from "./contexts/AppContext";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
 
 import Students from "./pages/Students";
 import Employees from "./pages/Employees";
@@ -26,8 +25,6 @@ import Settings from "./pages/Settings";
 import Accounts from "./pages/Accounts";
 import CreateStudent from "./pages/AddStudent";
 import TeacherRegistrationForm from "./pages/AddTeacher";
-import AssignHomework from "./pages/AssignHomework";
-import MyHomework from "./pages/MyHomework";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleBasedRedirect from "./components/RoleBasedRedirect";
@@ -39,7 +36,7 @@ import RoleAwareAttendance from "./components/RoleAwareAttendance";
 import RoleAwareTimetable from "./components/RoleAwareTimetable";
 import RoleAwareExams from "./components/RoleAwareExams";
 import RoleAwareDashboard from "./components/RoleAwareDashboard";
-import RoleAwareHomework from "./components/RoleAwareHomework";
+import HomeworkTab from "./components/homework/HomeworkTab";
 import StudentProfile from "./components/StudentProfile";
 import RoleAwareProfile from "./components/RoleAwareProfile";
 
@@ -110,20 +107,10 @@ function App() {
                             {/* Fees - Admin can manage, students can view/pay their fees */}
                             <Route path="/fees" element={<RoleAwareFees />} />
 
-                            {/* Attendance - Admin can manage, others view their own */}
+                            {/* Attendance - admin/teacher mark; students use my-attendance */}
                             <Route
                               path="/attendance"
                               element={<RoleAwareAttendance />}
-                            />
-
-                            {/* Teacher Routes */}
-                            <Route
-                              path="/attendance"
-                              element={
-                                <ProtectedRoute allowedRoles={["teacher", "admin"]}>
-                                  <Attendance />
-                                </ProtectedRoute>
-                              }
                             />
 
                             {/* Student Routes */}
@@ -146,7 +133,7 @@ function App() {
                             <Route path="/exams" element={<RoleAwareExams />} />
 
                             {/* Homework - Role-aware component */}
-                            <Route path="/homework" element={<RoleAwareHomework />} />
+                            <Route path="/homework" element={<HomeworkTab />} />
 
                             {/* Reports - Admin only */}
                             <Route
@@ -198,23 +185,13 @@ function App() {
                               }
                             />
 
-                            {/* Homework Routes */}
                             <Route
                               path="/assign-homework"
-                              element={
-                                <ProtectedRoute allowedRoles={["teacher", "employee"]}>
-                                  <AssignHomework />
-                                </ProtectedRoute>
-                              }
+                              element={<Navigate to="/homework" replace />}
                             />
-
                             <Route
                               path="/my-homework"
-                              element={
-                                <ProtectedRoute allowedRoles={["student"]}>
-                                  <MyHomework />
-                                </ProtectedRoute>
-                              }
+                              element={<Navigate to="/homework" replace />}
                             />
                           </Routes>
                         </Layout>
@@ -223,19 +200,6 @@ function App() {
                   />
                 </Routes>
 
-                {/* Toast Notifications */}
-                {/* <ToastContainer
-                  position="top-right"
-                  autoClose={5000}
-                  hideProgressBar={false}
-                  newestOnTop={false}
-                  closeOnClick
-                  rtl={false}
-                  pauseOnFocusLoss
-                  draggable
-                  pauseOnHover
-                  theme="light"
-                /> */}
               </div>
             </Router>
           </AppProvider>

@@ -1,58 +1,110 @@
 import apiService from "./apiService";
 import { API_ENDPOINTS } from "../utils/constants";
 
+const normalizeFeeResponse = (data = {}) => {
+  const payments = (data.payments || data.feeCollections || []).map((row) => ({
+    ...row,
+    _id: row._id || row.id,
+    paidAmount: Number(row.paidAmount ?? row.paid_amount ?? 0),
+    dueAmount: Number(row.dueAmount ?? row.due_amount ?? 0),
+    paymentStatus: row.paymentStatus || row.payment_status,
+    paymentMode: row.paymentMode || row.payment_mode,
+    receiptNumber: row.receiptNumber || row.receipt_no,
+    paymentMonth: row.paymentMonth || row.payment_month,
+    paymentYear: row.paymentYear || row.payment_year,
+  }));
+
+  return {
+    ...data,
+    student: data.student,
+    feeAssignment: data.feeAssignment || null,
+    payments,
+    feeCollections: payments,
+    summary: data.summary || {},
+    feeStatus: data.feeStatus || data.summary?.feeStatus || "PENDING",
+    paymentPercent: data.paymentPercent ?? data.summary?.paymentPercent ?? 0,
+    currentMonthStatus: data.currentMonthStatus || "PENDING",
+    latestPayment: data.latestPayment || null,
+    currentMonthPayment: data.currentMonthPayment || null,
+    monthlyLedger: data.monthlyLedger || [],
+  };
+};
+
 export const feeService = {
+  async getMyFees() {
+    try {
+      const data = await apiService.get(API_ENDPOINTS.FEES_ME);
+      return normalizeFeeResponse(data);
+    } catch (error) {
+      console.error("Error fetching my fees:", error);
+      throw new Error(error.message || "Failed to fetch fee details");
+    }
+  },
+
+  async searchByScholarNumber(scholarNumber) {
+    try {
+      const data = await apiService.get(
+        `${API_ENDPOINTS.FEES}/search/scholar/${encodeURIComponent(scholarNumber.trim())}`
+      );
+      return normalizeFeeResponse(data);
+    } catch (error) {
+      console.error("Error searching student fees:", error);
+      throw new Error(error.message || "Failed to search student");
+    }
+  },
+
   async getFeeDetails(studentId) {
     try {
-      return await apiService.get(`${API_ENDPOINTS.FEES}/${studentId}`);
+      const data = await apiService.get(`${API_ENDPOINTS.FEES}/${studentId}`);
+      return normalizeFeeResponse(data);
     } catch (error) {
       console.error("Error fetching fee details:", error);
-      throw new Error("Failed to fetch fee details. Please try again.");
+      throw new Error(error.message || "Failed to fetch fee details");
     }
   },
 
-  async generateFeeCollection(feeData) {
+  async markPaid(payload) {
     try {
-      return await apiService.post(`${API_ENDPOINTS.FEES}/generate`, feeData);
+      const data = await apiService.post(`${API_ENDPOINTS.FEES}/mark-paid`, {
+        studentId: payload.studentId,
+        student_id: payload.studentId,
+        payment_id: payload.paymentId || null,
+        feeCollectionId: payload.paymentId || null,
+        amount: payload.amount,
+        paid_amount: payload.amount,
+        payment_month: payload.paymentMonth,
+        payment_year: payload.paymentYear,
+        paymentMethod: payload.paymentMethod,
+        payment_mode: payload.paymentMethod,
+        receiptNumber: payload.receiptNumber,
+        remarks: payload.receiptNumber || payload.remarks,
+      });
+      return {
+        ...data,
+        receipt: data.receipt || null,
+        feeData: data.feeData ? normalizeFeeResponse(data.feeData) : null,
+      };
     } catch (error) {
-      console.error("Error generating fee collection:", error);
-      throw new Error("Failed to generate fee collection. Please try again.");
+      console.error("Error marking payment:", error);
+      throw new Error(error.message || "Failed to record payment");
     }
   },
 
-  async updateLateFees(updateData) {
+  async listPayments(filters = {}) {
     try {
-      return await apiService.put(`${API_ENDPOINTS.FEES}/update-late-fees`, updateData);
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          params.set(key, value);
+        }
+      });
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const data = await apiService.get(`${API_ENDPOINTS.FEES}/payments${query}`);
+      const rows = data.payments || data.data || [];
+      return Array.isArray(rows) ? rows : [];
     } catch (error) {
-      console.error("Error updating late fees:", error);
-      throw new Error("Failed to update late fees. Please try again.");
-    }
-  },
-
-  async upsertFeeStructure(payload) {
-    try {
-      return await apiService.post(`${API_ENDPOINTS.FEES}/structure`, payload);
-    } catch (error) {
-      console.error("Error saving fee structure:", error);
-      throw new Error("Failed to save fee structure. Please try again.");
-    }
-  },
-
-  async assignFeesToClass(payload) {
-    try {
-      return await apiService.post(`${API_ENDPOINTS.FEES}/assign`, payload);
-    } catch (error) {
-      console.error("Error assigning fees:", error);
-      throw new Error("Failed to assign fees. Please try again.");
-    }
-  },
-
-  async resetStudentToLatestStructure(scholarNumber) {
-    try {
-      return await apiService.post(`${API_ENDPOINTS.FEES}/reset-student/${encodeURIComponent(scholarNumber)}`, {});
-    } catch (error) {
-      console.error("Error resetting student fee data:", error);
-      throw new Error("Failed to reset student fee data. Please try again.");
+      console.error("Error listing payments:", error);
+      throw new Error(error.message || "Failed to load payments");
     }
   },
 };

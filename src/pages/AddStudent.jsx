@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import CSVUpload from "../components/common/CSVUpload";
+import { studentService } from "../services/studentService";
 import {
   UserIcon,
   EnvelopeIcon,
@@ -10,12 +12,9 @@ import {
   ArrowUpTrayIcon,
   CheckIcon,
   UsersIcon,
-  HeartIcon,
-  TruckIcon,
 } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../utils/constants";
-import { studentService } from "../services/studentService";
+import { CLASS_OPTIONS, SECTION_OPTIONS } from "../utils/constants";
 
 const CreateStudent = () => {
   const navigate = useNavigate();
@@ -26,19 +25,19 @@ const CreateStudent = () => {
     lastName: "",
     gender: "",
     dob: "",
-    bloodGroup: "",
-    religion: "",
-    caste: "",
-    nationality: "",
-    photoUrl: "",
+    aadhaarNo: "",
+    sssmid: "",
+    panNo: "",
+    apaarId: "",
 
     className: "",
     section: "",
-    academicYear: "",
     admissionDate: "",
+    admissionNo: "",
     rollNo: "",
 
     phone: "",
+    alternateContactNo: "",
     email: "",
     address: {
       street: "",
@@ -62,46 +61,29 @@ const CreateStudent = () => {
       relation: "Mother",
     },
 
-    guardian: {
-      name: "",
-      phone: "",
-      email: "",
-      relation: "",
-    },
-
-    transportOpted: false,
-    busRoute: "",
-    pickupPoint: "",
-
-    medicalConditions: "",
-
-    status: "Active",
-    remarks: "",
-    createdBy: "",
   });
-  const [availableYears, setAvailableYears] = useState(["2025-2026"]);
-  const [availableClasses, setAvailableClasses] = useState([]);
-  const [availableSections, setAvailableSections] = useState([]);
+  const [availableClasses] = useState(CLASS_OPTIONS);
+  const [availableSections] = useState(SECTION_OPTIONS);
 
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [uploadedCredentials, setUploadedCredentials] = useState(null);
 
-  useEffect(() => {
-    // load classes to drive dropdowns
-    (async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API_BASE_URL}/api/classes`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
-          const classes = data.classes || [];
-          setAvailableClasses([...new Set(classes.map(c => c.name))]);
-          setAvailableSections([...new Set(classes.map(c => c.section))]);
-          const years = [...new Set(classes.map(c => c.academicYear))];
-          if (years.length) setAvailableYears(years);
-        }
-      } catch (e) {}
-    })();
-  }, []);
+  const handleBulkCsvUpload = async (_formData, file) => {
+    setBulkMessage("");
+    if (!file) {
+      throw new Error("Please select a CSV file to upload.");
+    }
+    const result = await studentService.bulkUploadStudents(file);
+    if (result.credentials?.length > 0) {
+      setUploadedCredentials(result.credentials);
+    }
+    setBulkMessage(result.message || "Bulk upload completed.");
+    setTimeout(() => navigate("/students"), 1500);
+  };
+
+  // Class + section lists are now static to match PostgreSQL masters.
 
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
@@ -125,13 +107,7 @@ const CreateStudent = () => {
   };
 
   const handleSubmit = async () => {
-    const payload = {
-      ...formData,
-      medicalConditions: formData.medicalConditions
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item),
-    };
+    const payload = { ...formData };
 
     console.log("Student Data:", payload);
 
@@ -140,13 +116,17 @@ const CreateStudent = () => {
       console.log("Response Data:", data);
       
       // Show success message with default password information
-      alert(`Student created successfully!\n\nScholar Number: ${formData.scholarNumber || "Saved"}\nDefault Password: ${payload.password || formData.scholarNumber || "student@123"}\n\nPlease share these credentials with the student.`);
+      alert(
+        `Student created successfully!\n\nScholar Number: ${
+          formData.scholarNumber || "Saved"
+        }\nDefault Password: ${formData.scholarNumber || "student@123"}\n\nPlease share these credentials with the student.`
+      );
       
       setIsSubmitted(true);
       navigate("/students");
     } catch (error) {
       console.error("Error creating student:", error);
-      alert("Failed to create student. Please try again.");
+      alert(error.message || "Failed to create student. Please try again.");
     }
   };
 
@@ -168,6 +148,44 @@ const CreateStudent = () => {
           <p className="text-gray-600">
             Fill in the student details below to register them in the system
           </p>
+        </div>
+
+        <div className="mb-6 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Bulk import students</h2>
+              <p className="text-sm text-gray-600">
+                Upload a CSV to create many students at once (password = scholar number).
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBulkUpload((v) => !v)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+            >
+              {showBulkUpload ? "Hide bulk upload" : "Bulk upload CSV"}
+            </button>
+          </div>
+          {bulkMessage && (
+            <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              {bulkMessage}
+            </p>
+          )}
+          {showBulkUpload && (
+            <div className="mt-4">
+              <CSVUpload
+                onUpload={handleBulkCsvUpload}
+                title="Upload student CSV"
+                description="Use Class Name (8th, 10th, KG1) and Section (A, B, C) in the CSV — not database ids. Fees are assigned from the class fee structure."
+                entityType="students"
+                acceptedFileTypes=".csv"
+                maxFileSize={10}
+                showCredentialExport={Boolean(uploadedCredentials?.length)}
+                credentialData={uploadedCredentials}
+                sampleDownloadUrl="/sample_student_bulk_upload.csv"
+              />
+            </div>
+          )}
         </div>
 
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
@@ -265,70 +283,50 @@ const CreateStudent = () => {
                   </div>
 
                   <div>
-                    <label className={labelClasses}>Blood Group</label>
-                    <select
-                      name="bloodGroup"
-                      value={formData.bloodGroup}
-                      onChange={handleInputChange}
-                      className={inputClasses}
-                    >
-                      <option value="">Select blood group</option>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className={labelClasses}>Religion</label>
+                    <label className={labelClasses}>Aadhaar No</label>
                     <input
                       type="text"
-                      name="religion"
-                      value={formData.religion}
+                      name="aadhaarNo"
+                      value={formData.aadhaarNo}
                       onChange={handleInputChange}
                       className={inputClasses}
-                      placeholder="Enter religion"
+                      placeholder="12 digit Aadhaar"
                     />
                   </div>
 
                   <div>
-                    <label className={labelClasses}>Caste</label>
+                    <label className={labelClasses}>SSSMID</label>
                     <input
                       type="text"
-                      name="caste"
-                      value={formData.caste}
+                      name="sssmid"
+                      value={formData.sssmid}
                       onChange={handleInputChange}
                       className={inputClasses}
-                      placeholder="Enter caste"
+                      placeholder="SSSMID"
                     />
                   </div>
 
                   <div>
-                    <label className={labelClasses}>Nationality</label>
+                    <label className={labelClasses}>PAN No</label>
                     <input
                       type="text"
-                      name="nationality"
-                      value={formData.nationality}
+                      name="panNo"
+                      value={formData.panNo}
                       onChange={handleInputChange}
                       className={inputClasses}
-                      placeholder="Indian"
+                      placeholder="PAN number"
                     />
                   </div>
 
                   <div>
-                    <label className={labelClasses}>Photo URL</label>
+                    <label className={labelClasses}>APAAR ID</label>
                     <input
-                      type="url"
-                      name="photoUrl"
-                      value={formData.photoUrl}
+                      type="text"
+                      name="apaarId"
+                      value={formData.apaarId}
                       onChange={handleInputChange}
                       className={inputClasses}
-                      placeholder="https://example.com/photo.jpg"
+                      placeholder="APAAR ID"
                     />
                   </div>
                 </div>
@@ -354,8 +352,10 @@ const CreateStudent = () => {
                       required
                     >
                       <option value="">Select class</option>
-                      {availableClasses.map((cn) => (
-                        <option key={cn} value={cn}>{cn}</option>
+                      {availableClasses.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -371,25 +371,23 @@ const CreateStudent = () => {
                     >
                       <option value="">Select section</option>
                       {availableSections.map((s) => (
-                        <option key={s} value={s}>{s}</option>
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className={labelClasses}>Academic Year *</label>
-                    <select
-                      name="academicYear"
-                      value={formData.academicYear}
+                    <label className={labelClasses}>Admission No</label>
+                    <input
+                      type="text"
+                      name="admissionNo"
+                      value={formData.admissionNo}
                       onChange={handleInputChange}
                       className={inputClasses}
-                      required
-                    >
-                      <option value="">Select academic year</option>
-                      {availableYears.map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
+                      placeholder="e.g. 2025-001"
+                    />
                   </div>
 
                   <div>
@@ -453,6 +451,18 @@ const CreateStudent = () => {
                         placeholder="student@example.com"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Alternate Contact Number</label>
+                    <input
+                      type="tel"
+                      name="alternateContactNo"
+                      value={formData.alternateContactNo}
+                      onChange={handleInputChange}
+                      className={inputClasses}
+                      placeholder="+91 98765 43210"
+                    />
                   </div>
                 </div>
 
@@ -528,12 +538,12 @@ const CreateStudent = () => {
                 </div>
               </div>
 
-              {/* Parent/Guardian Information Section */}
+              {/* Parent Information Section */}
               <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6">
                 <div className="flex items-center mb-6">
                   <UsersIcon className="w-5 h-5 text-yellow-600 mr-2" />
                   <h2 className="text-xl font-semibold text-gray-900">
-                    Parent/Guardian Information
+                    Parent Information
                   </h2>
                 </div>
 
@@ -629,176 +639,6 @@ const CreateStudent = () => {
                   </div>
                 </div>
 
-                {/* Guardian Info */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Guardian Information (Optional)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div>
-                      <label className={labelClasses}>Guardian's Name</label>
-                      <input
-                        type="text"
-                        name="guardian.name"
-                        value={formData.guardian.name}
-                        onChange={handleInputChange}
-                        className={inputClasses}
-                        placeholder="Enter guardian's name"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={labelClasses}>Guardian's Phone</label>
-                      <input
-                        type="tel"
-                        name="guardian.phone"
-                        value={formData.guardian.phone}
-                        onChange={handleInputChange}
-                        className={inputClasses}
-                        placeholder="+91 98765 43210"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={labelClasses}>Guardian's Email</label>
-                      <input
-                        type="email"
-                        name="guardian.email"
-                        value={formData.guardian.email}
-                        onChange={handleInputChange}
-                        className={inputClasses}
-                        placeholder="guardian@example.com"
-                      />
-                    </div>
-
-                    <div>
-                      <label className={labelClasses}>Relation</label>
-                      <input
-                        type="text"
-                        name="guardian.relation"
-                        value={formData.guardian.relation}
-                        onChange={handleInputChange}
-                        className={inputClasses}
-                        placeholder="Uncle, Aunt, etc."
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Transport Information Section */}
-              <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6">
-                <div className="flex items-center mb-6">
-                  <TruckIcon className="w-5 h-5 text-cyan-600 mr-2" />
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Transport Information
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="transportOpted"
-                      checked={formData.transportOpted}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label className="ml-2 text-sm font-medium text-gray-700">
-                      Transport Opted
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className={labelClasses}>Bus Route</label>
-                    <input
-                      type="text"
-                      name="busRoute"
-                      value={formData.busRoute}
-                      onChange={handleInputChange}
-                      className={inputClasses}
-                      placeholder="Route 1"
-                      disabled={!formData.transportOpted}
-                    />
-                  </div>
-
-                  <div>
-                    <label className={labelClasses}>Pickup Point</label>
-                    <input
-                      type="text"
-                      name="pickupPoint"
-                      value={formData.pickupPoint}
-                      onChange={handleInputChange}
-                      className={inputClasses}
-                      placeholder="Main Gate"
-                      disabled={!formData.transportOpted}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Health & Administrative Section */}
-              <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6">
-                <div className="flex items-center mb-6">
-                  <HeartIcon className="w-5 h-5 text-red-600 mr-2" />
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Health & Administrative Information
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className={labelClasses}>Medical Conditions</label>
-                    <input
-                      type="text"
-                      name="medicalConditions"
-                      value={formData.medicalConditions}
-                      onChange={handleInputChange}
-                      className={inputClasses}
-                      placeholder="Asthma, Allergy (comma separated)"
-                    />
-                  </div>
-
-                  <div>
-                    <label className={labelClasses}>Status</label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className={inputClasses}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Transfered">Transferred</option>
-                      <option value="Graduated">Graduated</option>
-                      <option value="Dropped">Dropped</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className={labelClasses}>Created By</label>
-                    <input
-                      type="text"
-                      name="createdBy"
-                      value={formData.createdBy}
-                      onChange={handleInputChange}
-                      className={inputClasses}
-                      placeholder="Admin name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className={labelClasses}>Remarks</label>
-                    <textarea
-                      name="remarks"
-                      value={formData.remarks}
-                      onChange={handleInputChange}
-                      className={inputClasses}
-                      placeholder="Any additional remarks"
-                      rows={3}
-                    />
-                  </div>
-                </div>
               </div>
 
               {/* Submit Button */}

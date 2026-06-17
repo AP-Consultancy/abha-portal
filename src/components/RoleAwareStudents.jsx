@@ -1,27 +1,23 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Students from '../pages/Students';
 import StudentDashboard from './StudentDashboard';
-import TeacherDashboard from './TeacherDashboard';
 
 const RoleAwareStudents = () => {
   const { getUserRole } = useAuth();
   const userRole = getUserRole();
 
-  // Show role-specific content
   switch (userRole) {
     case 'admin':
-      // Admin sees full student management interface
       return <Students />;
     
     case 'student':
-      // Students see their personal dashboard/profile
       return <StudentDashboard />;
     
     case 'employee':
     case 'teacher':
-      // Teachers see their profile/dashboard
-      return <TeacherDashboard />;
+      return <Navigate to="/dashboard" replace />;
     
     default:
       return (

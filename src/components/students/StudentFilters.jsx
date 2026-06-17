@@ -51,11 +51,14 @@ const StudentFilters = ({
           <select
             value={selectedSection}
             onChange={(e) => setSelectedSection(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={!selectedClass}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100"
           >
-            <option value="">All Sections</option>
+            <option value="">
+              {selectedClass ? "All Sections" : "Select class first"}
+            </option>
             {availableSections.map((sectionOption) => (
-              <option key={sectionOption.value} value={sectionOption.value}>
+              <option key={`section-${sectionOption.value}`} value={sectionOption.value}>
                 Section {sectionOption.label}
               </option>
             ))}

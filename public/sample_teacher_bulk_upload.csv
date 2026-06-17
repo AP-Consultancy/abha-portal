@@ -1,0 +1,3 @@
+First Name,Last Name,Email,Phone,Employee ID,Qualification,Specialization,Joining Date,Salary,Class,Section,Subject ID,Academic Year ID,Is Class Teacher
+Anita,Sharma,anita.sharma@school.com,9876500011,EMP1001,M.Sc,Biology,2026-04-01,35000,8th,A,2,1,true
+Rohit,Verma,rohit.verma@school.com,9876500012,EMP1002,B.Ed,Mathematics,2026-04-01,32000,9th,B,1,1,false
