@@ -44,9 +44,9 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <AuthProvider>
-          <AppProvider>
-            <Router>
+        <Router>
+          <AuthProvider>
+            <AppProvider>
               <div className="App">
                 <Routes>
                   {/* Public Routes */}
@@ -201,9 +201,9 @@ function App() {
                 </Routes>
 
               </div>
-            </Router>
-          </AppProvider>
-        </AuthProvider>
+            </AppProvider>
+          </AuthProvider>
+        </Router>
       </ThemeProvider>
     </ErrorBoundary>
   );
