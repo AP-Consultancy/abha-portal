@@ -47,7 +47,7 @@ const Login = () => {
         setError("Invalid credentials. Please try again.");
       }
     } catch (err) {
-      setError("Login failed. Please try again.");
+      setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -55,16 +55,8 @@ const Login = () => {
 
   const demoCredentials = [
     { enrollno: "admin@school.com", password: "admin123", role: "admin" },
-    {
-      enrollno: "ABHA05A007",
-      password: "abha@123",
-      role: "student",
-    },
-    {
-      enrollno: "ABHA05A001",
-      password: "abha@123",
-      role: "employee",
-    },
+    { enrollno: "U-001", password: "U-001", role: "student" },
+    { enrollno: "TESTEMP003", password: "TESTEMP003", role: "employee" },
   ];
 
   return (

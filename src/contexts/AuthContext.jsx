@@ -17,7 +17,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in (from localStorage)
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
       setUser(JSON.parse(savedUser));
@@ -34,20 +33,27 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const data = await apiService.post(API_ENDPOINTS.LOGIN, {
-        email: identifier,
+        identifier,
+        enrollmentNo: identifier,
+        email: identifier.includes("@") ? identifier : undefined,
         password,
+        role,
       });
 
       if (data.success) {
         const authData = data.data || data;
-        // Store token separately for security
-        if (authData.token) {
-          localStorage.setItem("token", authData.token);
+        const token = data.token || authData.token;
+
+        if (token) {
+          localStorage.setItem("token", token);
         }
-        
-        // Normalize the user data structure
+
         const baseUserData =
-          authData.user || data.student || data.teacher || data.admin || null;
+          data.student ||
+          data.teacher ||
+          data.admin ||
+          authData.user ||
+          null;
         const resolvedRole = (baseUserData?.role || role || "").toLowerCase();
         const mappedUserData = baseUserData
           ? {
@@ -58,19 +64,19 @@ export const AuthProvider = ({ children }) => {
             }
           : null;
         const normalizedUser = {
-          ...authData,
+          ...data,
           userRole: resolvedRole,
           userData: mappedUserData,
         };
-        
+
         setUser(normalizedUser);
         localStorage.setItem("user", JSON.stringify(normalizedUser));
         setLoading(false);
         return true;
-      } else {
-        setLoading(false);
-        throw new Error(data.message || "Login failed");
       }
+
+      setLoading(false);
+      throw new Error(data.message || "Login failed");
     } catch (error) {
       setLoading(false);
       throw error;
@@ -81,21 +87,21 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    // Redirect to login page
     window.location.href = "/login";
   };
 
   const getUserRole = () => {
     if (!user) return null;
-    // Check for explicit userRole first, then check nested user objects
-    const role = user.userRole || (user.student?.user || user.teacher?.user || user.admin?.user || '').toLowerCase();
+    const role =
+      user.userRole ||
+      (user.student?.user || user.teacher?.user || user.admin?.user || "").toLowerCase();
     return role;
   };
 
   const hasRole = (requiredRoles) => {
     const currentRole = getUserRole();
     if (!currentRole) return false;
-    
+
     if (Array.isArray(requiredRoles)) {
       return requiredRoles.includes(currentRole);
     }
