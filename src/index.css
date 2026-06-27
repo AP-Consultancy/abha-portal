@@ -8,11 +8,14 @@
   }
 
   .fee-receipt-print-area,
-  .fee-receipt-print-area * {
+  .fee-receipt-print-area *,
+  #bonafide-print-area,
+  #bonafide-print-area * {
     visibility: visible;
   }
 
-  .fee-receipt-print-area {
+  .fee-receipt-print-area,
+  #bonafide-print-area {
     position: absolute;
     left: 0;
     top: 0;

@@ -133,6 +133,12 @@ const allNavigation = [
     roles: ["student", "employee", "teacher"],
   },
   {
+    name: "Bonafide",
+    href: "/bonafide",
+    icon: DocumentTextIcon,
+    roles: ["admin", "teacher", "employee"],
+  },
+  {
     name: "Reports",
     href: "/reports",
     icon: ChartBarIcon,

@@ -39,6 +39,7 @@ import RoleAwareDashboard from "./components/RoleAwareDashboard";
 import HomeworkTab from "./components/homework/HomeworkTab";
 import StudentProfile from "./components/StudentProfile";
 import RoleAwareProfile from "./components/RoleAwareProfile";
+import Bonafide from "./pages/Bonafide";
 
 function App() {
   return (
@@ -134,6 +135,16 @@ function App() {
 
                             {/* Homework - Role-aware component */}
                             <Route path="/homework" element={<HomeworkTab />} />
+
+                            {/* Bonafide - Admin & teachers only */}
+                            <Route
+                              path="/bonafide"
+                              element={
+                                <ProtectedRoute requiredRoles={["admin", "teacher", "employee"]}>
+                                  <Bonafide />
+                                </ProtectedRoute>
+                              }
+                            />
 
                             {/* Reports - Admin only */}
                             <Route
