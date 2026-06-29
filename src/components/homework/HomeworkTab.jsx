@@ -27,7 +27,8 @@ const toInputDate = (value) => {
 const HomeworkTab = () => {
   const { getUserRole } = useAuth();
   const userRole = getUserRole();
-  const canManageHomework = userRole === "admin" || userRole === "teacher";
+  const canManageHomework =
+    userRole === "admin" || userRole === "teacher" || userRole === "employee";
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [listLoading, setListLoading] = useState(false);
@@ -75,6 +76,28 @@ const HomeworkTab = () => {
       active = false;
     };
   }, [canManageHomework, loadHomework, loadMasters]);
+
+  useEffect(() => {
+    if (!canManageHomework || editingHomeworkId) return;
+    if (classOptions.length !== 1 || formData.className) return;
+
+    const onlyClass = classOptions[0];
+    const sections = classSectionCombinations
+      .filter((item) => item.className === onlyClass)
+      .map((item) => item.section);
+
+    setFormData((prev) => ({
+      ...prev,
+      className: onlyClass,
+      section: sections.length === 1 ? sections[0] : prev.section,
+    }));
+  }, [
+    canManageHomework,
+    classOptions,
+    classSectionCombinations,
+    editingHomeworkId,
+    formData.className,
+  ]);
 
   const refreshList = async () => {
     try {
