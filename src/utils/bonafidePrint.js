@@ -43,19 +43,32 @@ const escapeXml = (value) =>
 export const buildBonafideData = (student, purpose = "") => {
   const classLabel =
     student.className ||
+    student.class_name ||
+    student.class ||
     getClassLabel(student.classId || student.class_id) ||
     "";
 
-  const section = student.section ? ` (${student.section})` : "";
+  const sectionValue = student.section || student.section_name || "";
+  const section = sectionValue ? ` (${sectionValue})` : "";
 
   return {
     student_name: fullName(student),
-    scholar_no: student.scholarNumber || student.enrollmentNo || "",
+    scholar_no:
+      student.scholarNumber ||
+      student.scholar_no ||
+      student.scholar_number ||
+      student.enrollmentNo ||
+      student.admission_no ||
+      "",
     class: `${classLabel}${section}`.trim(),
-    father_name: student.father?.name || student.fatherName || "",
+    father_name:
+      student.father?.name ||
+      student.fatherName ||
+      student.father_name ||
+      "",
     academic_year:
       student.academicYear || student.academic_year || defaultAcademicYear(),
-    dob: formatBonafideDob(student.dob),
+    dob: formatBonafideDob(student.dob || student.date_of_birth || student.dateOfBirth),
     purpose: purpose.trim() || "official purposes",
   };
 };
@@ -92,6 +105,31 @@ const fillTemplateBlanks = (zip, data) => {
       `>${TEMPLATE_SESSION}<`,
       `>${escapeXml(data.academic_year)}<`
     );
+  }
+
+  // Some school templates store certificate body text as white, which appears blank in Word.
+  // Force readable text color while keeping layout/content intact.
+  xml = xml
+    .replace(
+      /<w:color\s+w:val="FFFFFF"\s+w:themeColor="background1"\s*\/>/g,
+      '<w:color w:val="111111"/>'
+    )
+    .replace(/<w:color\s+w:val="FFFFFF"\s*\/>/g, '<w:color w:val="111111"/>');
+
+  // Keep certificate content within one page by reducing oversized template run fonts.
+  xml = xml
+    .replace(/<w:sz\s+w:val="40"\s*\/>/g, '<w:sz w:val="30"/>')
+    .replace(/<w:szCs\s+w:val="38"\s*\/>/g, '<w:szCs w:val="30"/>')
+    .replace(/<w:sz\s+w:val="34"\s*\/>/g, '<w:sz w:val="24"/>')
+    .replace(/<w:szCs\s+w:val="32"\s*\/>/g, '<w:szCs w:val="24"/>');
+
+  const footerXml =
+    '<w:p><w:pPr><w:spacing w:before="260"/></w:pPr></w:p>' +
+    '<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9000"/></w:tabs><w:rPr><w:b/><w:color w:val="111111"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:pPr><w:r><w:rPr><w:b/><w:color w:val="111111"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>School Seal</w:t></w:r><w:r><w:tab/></w:r><w:r><w:rPr><w:b/><w:color w:val="111111"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Principal Sign</w:t></w:r></w:p>' +
+    '<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9000"/></w:tabs><w:rPr><w:color w:val="111111"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:pPr><w:r><w:rPr><w:color w:val="111111"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>(Stamp)</w:t></w:r><w:r><w:tab/></w:r><w:r><w:rPr><w:color w:val="111111"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Principal</w:t></w:r></w:p>';
+
+  if (!xml.includes("Principal Sign")) {
+    xml = xml.replace("</w:body>", `${footerXml}</w:body>`);
   }
 
   zip.file("word/document.xml", xml);
@@ -159,6 +197,8 @@ export const printBonafidePreview = (containerId = "bonafide-print-area") => {
         <style>
           body { margin: 0; padding: 24px; font-family: "Times New Roman", serif; }
           .docx-wrapper { margin: 0 auto; }
+          .docx-bonafide-preview, .docx-bonafide-preview * { color: #111 !important; }
+          .docx-bonafide-preview { background: #fff !important; }
           @media print { body { padding: 0; } }
         </style>
       </head>

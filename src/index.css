@@ -28,3 +28,13 @@
     display: none !important;
   }
 }
+
+/* docx-preview may output white text runs for some template fragments; keep bonafide readable */
+#bonafide-print-area .docx-bonafide-preview,
+#bonafide-print-area .docx-bonafide-preview * {
+  color: #111 !important;
+}
+
+#bonafide-print-area .docx-bonafide-preview {
+  background: #fff !important;
+}

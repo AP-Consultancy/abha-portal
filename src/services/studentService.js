@@ -112,6 +112,11 @@ const mapStudentForManage = (student = {}, action, identity = {}) => {
 
 const normalizeStudent = (student = {}) => {
   const nameParts = (student.student_name || "").trim().split(/\s+/).filter(Boolean);
+  const combinedName = compact([
+    student.firstName || student.first_name,
+    student.middleName || student.middle_name,
+    student.lastName || student.last_name,
+  ]);
 
   // UI expects "Male" / "Female" / "Other" (see BasicInfoForm gender options)
   const normalizeGenderForUI = (g) => {
@@ -132,8 +137,16 @@ const normalizeStudent = (student = {}) => {
     classId: student.classId || student.class_id,
     sectionId: student.sectionId || student.section_id,
     academicYearId: student.academicYearId || student.academic_year_id,
-    enrollmentNo: student.enrollmentNo || student.admission_no || student.scholar_no,
-    scholarNumber: student.scholarNumber || student.scholar_no || student.admission_no,
+    enrollmentNo:
+      student.enrollmentNo ||
+      student.admission_no ||
+      student.scholar_no ||
+      student.scholar_number,
+    scholarNumber:
+      student.scholarNumber ||
+      student.scholar_no ||
+      student.scholar_number ||
+      student.admission_no,
     firstName: student.firstName || student.first_name || nameParts[0] || "",
     middleName: student.middleName || "",
     lastName:
@@ -141,7 +154,7 @@ const normalizeStudent = (student = {}) => {
       student.last_name ||
       (nameParts.length > 1 ? nameParts.slice(1).join(" ") : ""),
     gender: normalizeGenderForUI(student.gender),
-    dob: student.dob || student.date_of_birth,
+    dob: student.dob || student.date_of_birth || student.dateOfBirth,
     className: student.className || student.class_name || student.class || "",
     section:
       student.section ||
@@ -161,7 +174,7 @@ const normalizeStudent = (student = {}) => {
     panNo: student.panNo || student.pan_no || "",
     apaarId: student.apaarId || student.apaar_id || "",
     admissionNo: student.admissionNo || student.admission_no || "",
-    studentName: student.studentName || student.student_name || "",
+    studentName: student.studentName || student.student_name || combinedName || "",
     email: student.email || student.student_email || student.user_email || "",
     userPhone: student.userPhone || student.user_phone || "",
     monthlyFee: student.monthly_fee ?? student.monthlyFee ?? "",
@@ -206,6 +219,22 @@ const normalizeStudent = (student = {}) => {
 };
 
 export const studentService = {
+  async getBonafideStudents() {
+    try {
+      const data = await apiService.get(API_ENDPOINTS.GET_ALL_STUDENTS, {
+        cache: "no-store",
+      });
+
+      const rows = data?.students || data?.data || [];
+      return rows.map(normalizeStudent);
+    } catch (error) {
+      console.error("Error fetching bonafide students:", error);
+      throw new Error(
+        "Failed to load students for bonafide. Please check your server connection."
+      );
+    }
+  },
+
   async getAllStudents(filters = {}) {
     try {
       const queryFilters = {

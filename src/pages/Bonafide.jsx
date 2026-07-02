@@ -17,8 +17,8 @@ const Bonafide = () => {
     const load = async () => {
       try {
         setLoading(true);
-        const result = await studentService.getAllStudents({ limit: 500 });
-        setStudents(result.students || []);
+        const result = await studentService.getBonafideStudents();
+        setStudents(result || []);
       } catch (err) {
         setError(err.message || "Failed to load students.");
       } finally {
