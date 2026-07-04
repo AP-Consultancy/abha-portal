@@ -227,6 +227,14 @@ const TeacherProfile = () => {
               </a>
               
               <a
+                href="/my-teacher-attendance"
+                className="flex flex-col items-center p-4 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors"
+              >
+                <CalendarIcon className="h-8 w-8 text-teal-600 mb-2" />
+                <span className="text-sm font-medium text-teal-900">My Attendance</span>
+              </a>
+              
+              <a
                 href="/attendance"
                 className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
               >

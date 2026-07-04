@@ -144,6 +144,12 @@ export const API_ENDPOINTS = {
   // Attendance endpoints
   ATTENDANCE: "/api/attendance",
   MANAGE_ATTENDANCE: "/api/attendance/manage",
+  TEACHER_ATTENDANCE: "/api/teacher-attendance",
+  MANAGE_TEACHER_ATTENDANCE: "/api/teacher-attendance/manage",
+  // Salary endpoints
+  SALARY: "/api/salary",
+  MANAGE_SALARY: "/api/salary/manage",
+  SALARY_GENERATE: "/api/salary/generate",
   // Fee endpoints
   FEES: "/api/fees",
   FEES_ME: "/api/fees/me",

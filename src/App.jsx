@@ -18,6 +18,10 @@ import Subjects from "./pages/Subjects";
 import Fees from "./pages/Fees";
 import Attendance from "./pages/Attendance";
 import StudentAttendance from "./pages/StudentAttendance";
+import TeacherAttendance from "./pages/TeacherAttendance";
+import MyTeacherAttendance from "./pages/MyTeacherAttendance";
+import SalaryManagement from "./pages/SalaryManagement";
+import MySalary from "./pages/MySalary";
 import Timetable from "./pages/Timetable";
 import Exams from "./pages/Exams";
 import Reports from "./pages/Reports";
@@ -122,6 +126,41 @@ function App() {
                               element={
                                 <ProtectedRoute allowedRoles={["student"]}>
                                   <StudentAttendance />
+                                </ProtectedRoute>
+                              }
+                            />
+
+                            {/* Teacher attendance - admin marks, teachers view own */}
+                            <Route
+                              path="/teacher-attendance"
+                              element={
+                                <ProtectedRoute requiredRoles={["admin"]}>
+                                  <TeacherAttendance />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/my-teacher-attendance"
+                              element={
+                                <ProtectedRoute requiredRoles={["teacher", "employee"]}>
+                                  <MyTeacherAttendance />
+                                </ProtectedRoute>
+                              }
+                            />
+
+                            <Route
+                              path="/salary-management"
+                              element={
+                                <ProtectedRoute requiredRoles={["admin"]}>
+                                  <SalaryManagement />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/my-salary"
+                              element={
+                                <ProtectedRoute requiredRoles={["teacher", "employee"]}>
+                                  <MySalary />
                                 </ProtectedRoute>
                               }
                             />
