@@ -11,6 +11,7 @@ const normalizeClassText = (raw) =>
     .trim()
     .toLowerCase()
     .replace(/\bstandard\b/g, "")
+    .replace(/\bstd\.?\b/g, "")
     .replace(/\bgrade\b/g, "")
     .replace(/\bclass\b/g, "")
     .replace(/\s+/g, "")

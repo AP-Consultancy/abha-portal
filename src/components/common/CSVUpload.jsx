@@ -137,9 +137,10 @@ const CSVUpload = ({
           "Default login password = employee ID",
         ]
       : [
-          "Required: Scholar No, First Name, Last Name, Gender, Date of Birth, Class, Section",
-          "Class: use class name (e.g. 8th) or class_id (e.g. 11). Section: A, B, or C",
-          "Dates must be YYYY-MM-DD. Default login password = scholar number",
+          "Required: Scholar No, First Name, Gender, Date of Birth, Class Name, Section",
+          "Class: 8th, 10th, KG1, Nursery, etc. Section: A, B, or C",
+          "Dates: YYYY-MM-DD or DD/MM/YYYY. Save Excel as CSV (Comma delimited)",
+          "Leave Email blank to auto-generate from Scholar No. Password = scholar number",
         ];
 
   // Export login credentials as CSV

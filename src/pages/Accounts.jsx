@@ -10,19 +10,19 @@ const Accounts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch transactions on component mount
+  // Fetch transactions on component mount and when period changes
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [selectedPeriod]);
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const data = await accountsService.getTransactions();
+      const data = await accountsService.getTransactions({ period: selectedPeriod });
       setTransactions(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
-      setError('Failed to fetch transactions');
+      setError(err.message || 'Failed to fetch transactions');
       console.error('Error fetching transactions:', err);
     } finally {
       setLoading(false);

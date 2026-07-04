@@ -1,3 +1,4 @@
-Scholar No,First Name,Last Name,Gender,Date of Birth,Class Name,Section,Roll No,Admission No,Phone,Email,Street Address,City,State,Postal Code,Father's Name,Mother's Name,Admission Date
-98765401,Riya,Sharma,Female,2012-04-10,8th,A,12,ADM-8001,9876500001,riya.sharma@email.com,12 MG Road,Jaipur,Rajasthan,302001,Raj Sharma,Meera Sharma,2026-04-01
-98765402,Arjun,Patel,Male,2012-08-22,10th,B,13,ADM-8002,9876500002,arjun.patel@email.com,45 Station Road,Ahmedabad,Gujarat,380001,Vikram Patel,Neha Patel,2026-04-01
+Scholar No,First Name,Middle Name,Last Name,Gender,Date of Birth,Class Name,Section,Roll No,Admission No,Phone,Alternate Contact No,Email,Street Address,City,State,Postal Code,Father's Name,Mother's Name,Aadhaar No,SSSMID,PAN No,APAAR ID,Admission Date
+TEST-9011,Riya,Kumari,Sharma,Female,10/04/2012,8th,A,12,ADM-9011,9876500001,9876500101,,12 MG Road,Jaipur,Rajasthan,302001,Raj Sharma,Meera Sharma,123456789012,SSSM1234567890,ABCDE1234F,APAAR-9011,01/04/2026
+TEST-9012,Arjun,Kumar,Patel,Male,22/08/2011,10th,B,13,ADM-9012,9876500002,9876500102,,45 Station Road,Ahmedabad,Gujarat,380001,Vikram Patel,Neha Patel,234567890123,SSSM2345678901,BCDEF2345G,APAAR-9012,01/04/2026
+TEST-9013,Ananya,,Singh,Female,15/01/2010,10th,C,14,ADM-9013,9876500003,9876500103,,78 Park Street,Kolkata,West Bengal,700001,Amit Singh,Priya Singh,345678901234,SSSM3456789012,CDEFG3456H,APAAR-9013,01/04/2026

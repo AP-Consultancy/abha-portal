@@ -1,5 +1,18 @@
 import { getClassLabel, resolveClassId, resolveSectionId } from "./classSectionResolve";
 
+const stripBom = (text) => String(text || "").replace(/^\uFEFF/, "");
+
+const detectDelimiter = (headerLine) => {
+  const line = stripBom(headerLine);
+  const candidates = [
+    { delimiter: ",", count: (line.match(/,/g) || []).length },
+    { delimiter: ";", count: (line.match(/;/g) || []).length },
+    { delimiter: "\t", count: (line.match(/\t/g) || []).length },
+  ];
+  candidates.sort((a, b) => b.count - a.count);
+  return candidates[0]?.count > 0 ? candidates[0].delimiter : ",";
+};
+
 const sanitizeHeader = (header) =>
   String(header)
     .toLowerCase()
@@ -9,6 +22,7 @@ const sanitizeHeader = (header) =>
 const HEADER_MAP = {
   firstname: "firstName",
   lastname: "lastName",
+  middlename: "middleName",
   gender: "gender",
   dob: "dob",
   dateofbirth: "dob",
@@ -27,6 +41,11 @@ const HEADER_MAP = {
   rollno: "rollNo",
   phonenumber: "phone",
   phone: "phone",
+  contactno: "phone",
+  alternatecontactno: "alternateContactNo",
+  alternatecontact: "alternateContactNo",
+  mobileno: "phone",
+  mobilenumber: "phone",
   email: "email",
   emailaddress: "email",
   streetaddress: "street",
@@ -35,17 +54,20 @@ const HEADER_MAP = {
   state: "state",
   postalcode: "pincode",
   zipcode: "pincode",
+  pincode: "pincode",
   fathersname: "fatherName",
   mothersname: "motherName",
   studentname: "studentName",
   aadharid: "aadhaarNo",
   aadhaarno: "aadhaarNo",
   samagraid: "sssmid",
+  sssmid: "sssmid",
   pan: "panNo",
+  apaarid: "apaarId",
   admissiondate: "admissionDate",
 };
 
-const parseCsvLine = (line) => {
+const parseCsvLine = (line, delimiter = ",") => {
   const values = [];
   let current = "";
   let inQuotes = false;
@@ -59,7 +81,7 @@ const parseCsvLine = (line) => {
       } else {
         inQuotes = !inQuotes;
       }
-    } else if (char === "," && !inQuotes) {
+    } else if (char === delimiter && !inQuotes) {
       values.push(current.trim());
       current = "";
     } else {
@@ -71,16 +93,25 @@ const parseCsvLine = (line) => {
 };
 
 export const parseCsvText = (text) => {
-  const lines = String(text)
+  const normalized = stripBom(text);
+  const lines = normalized
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
 
   if (lines.length < 2) return [];
 
-  const headers = parseCsvLine(lines[0]);
+  const delimiter = detectDelimiter(lines[0]);
+  const headers = parseCsvLine(lines[0], delimiter).map((h) => h.replace(/^\uFEFF/, ""));
+
+  if (headers.length === 1 && /[;\t]/.test(lines[0])) {
+    throw new Error(
+      "CSV columns were not detected. Save as CSV (Comma delimited) from Excel."
+    );
+  }
+
   return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
+    const values = parseCsvLine(line, delimiter);
     const row = {};
     headers.forEach((header, index) => {
       row[header] = values[index] ?? "";
