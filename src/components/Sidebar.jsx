@@ -15,6 +15,8 @@ import {
   ChartBarIcon,
   CogIcon,
   CalculatorIcon,
+  ClipboardDocumentListIcon,
+  PresentationChartLineIcon,
 } from "@heroicons/react/24/outline";
 
 const allNavigation = [
@@ -131,6 +133,18 @@ const allNavigation = [
     href: "/exams",
     icon: DocumentTextIcon,
     roles: ["student", "employee", "teacher"],
+  },
+  {
+    name: "Performance & Behavior",
+    href: "/performance",
+    icon: PresentationChartLineIcon,
+    roles: ["admin", "teacher", "employee", "student"],
+  },
+  {
+    name: "Rules & Regulations",
+    href: "/rules",
+    icon: ClipboardDocumentListIcon,
+    roles: ["admin", "teacher", "employee", "student"],
   },
   {
     name: "Bonafide",

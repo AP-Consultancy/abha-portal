@@ -1,6 +1,7 @@
 import React from "react";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { formatDate } from "../../utils/studentUtils";
+import WhatsAppContactButton from "../common/WhatsAppContactButton";
 
 const display = (value) => {
   if (value === null || value === undefined || value === "") return "—";
@@ -120,6 +121,11 @@ const StudentTable = ({ students, onEdit, onDelete }) => {
                 })}
                 <td className={`px-3 py-3 sticky right-0 z-[1] ${rowBg} whitespace-nowrap`}>
                   <div className="flex gap-2">
+                    <WhatsAppContactButton
+                      student={student}
+                      message={`Hello, this is regarding ${student.studentName || student.firstName || "your ward"} from the school.`}
+                      size="xs"
+                    />
                     <button
                       type="button"
                       onClick={() => onEdit(student)}

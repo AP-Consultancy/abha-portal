@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { homeworkService } from "../../services/homeworkService";
+import { studentService } from "../../services/studentService";
+import { resolveClassId as resolveClassIdFromInput } from "../../utils/classSectionResolve";
+import { resolveSectionIdForClass } from "../../utils/studentUtils";
 import LoadingSpinner from "../common/LoadingSpinner";
 import ErrorMessage from "../common/ErrorMessage";
+import WhatsAppContactButton from "../common/WhatsAppContactButton";
 
 const initialForm = {
   className: "",
@@ -40,6 +44,7 @@ const HomeworkTab = () => {
   const [classSectionCombinations, setClassSectionCombinations] = useState([]);
   const [formData, setFormData] = useState(initialForm);
   const [editingHomeworkId, setEditingHomeworkId] = useState(null);
+  const [contactStudents, setContactStudents] = useState([]);
 
   const loadHomework = useCallback(async () => {
     const response = await homeworkService.getHomework();
@@ -76,6 +81,34 @@ const HomeworkTab = () => {
       active = false;
     };
   }, [canManageHomework, loadHomework, loadMasters]);
+
+  useEffect(() => {
+    if (!canManageHomework || !formData.className || !formData.section) {
+      setContactStudents([]);
+      return;
+    }
+
+    const classId = resolveClassIdFromInput(formData.className);
+    const sectionId = resolveSectionIdForClass(classId, formData.section);
+    if (!classId || sectionId === null) {
+      setContactStudents([]);
+      return;
+    }
+
+    let active = true;
+    studentService
+      .getAllStudents({ classId, sectionId, limit: 200 })
+      .then((response) => {
+        if (active) setContactStudents(response.students || []);
+      })
+      .catch(() => {
+        if (active) setContactStudents([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canManageHomework, formData.className, formData.section]);
 
   useEffect(() => {
     if (!canManageHomework || editingHomeworkId) return;
@@ -432,6 +465,49 @@ const HomeworkTab = () => {
           </div>
         )}
       </div>
+
+      {canManageHomework && formData.className && formData.section ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            Contact Students ({formData.className} - {formData.section})
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Send homework reminders via WhatsApp using registered mobile numbers.
+          </p>
+          {contactStudents.length === 0 ? (
+            <p className="text-sm text-gray-500">No students found for this class and section.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Scholar No</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">WhatsApp</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {contactStudents.map((student) => (
+                    <tr key={student.id || student._id || student.studentId}>
+                      <td className="px-4 py-2 text-sm">
+                        {student.studentName || `${student.firstName || ""} ${student.lastName || ""}`.trim()}
+                      </td>
+                      <td className="px-4 py-2 text-sm">{student.scholarNumber || "—"}</td>
+                      <td className="px-4 py-2">
+                        <WhatsAppContactButton
+                          student={student}
+                          message={`Hello, this is a homework reminder for ${student.studentName || student.firstName || "your ward"} regarding ${formData.className} ${formData.section}.`}
+                          size="xs"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -17,6 +17,7 @@ import { subjectService } from "../services/subjectService";
 import { classService } from "../services/classService";
 import { teacherService } from "../services/teacherService";
 import CSVUpload from "../components/common/CSVUpload";
+import WhatsAppContactButton from "../components/common/WhatsAppContactButton";
 import { API_BASE_URL } from "../utils/constants";
 
 const Exams = () => {
@@ -484,6 +485,7 @@ const Exams = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marks</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -502,6 +504,17 @@ const Exams = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {((result.marksObtained / result.totalMarks) * 100).toFixed(1)}%
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <WhatsAppContactButton
+                              student={result.student || { studentName: result.studentName, phone: result.phone }}
+                              message={`Hello, this is regarding the exam results for ${
+                                result.student
+                                  ? `${result.student.firstName || ""} ${result.student.lastName || ""}`.trim()
+                                  : result.studentName || "your ward"
+                              }.`}
+                              size="xs"
+                            />
                           </td>
                         </tr>
                       ))}

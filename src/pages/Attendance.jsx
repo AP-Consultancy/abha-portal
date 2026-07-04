@@ -17,6 +17,7 @@ import {
   resolveClassId,
   resolveSectionId,
 } from "../utils/attendanceUtils";
+import WhatsAppContactButton from "../components/common/WhatsAppContactButton";
 
 const Attendance = () => {
   const { user, getUserRole } = useAuth();
@@ -424,6 +425,9 @@ const Attendance = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Status
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Contact
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -473,6 +477,13 @@ const Attendance = () => {
                               </option>
                             ))}
                           </select>
+                        </td>
+                        <td className="px-6 py-4">
+                          <WhatsAppContactButton
+                            student={item.student}
+                            message={`Hello, this is regarding ${studentName}'s attendance on ${selectedDate}.`}
+                            size="xs"
+                          />
                         </td>
                       </tr>
                     );

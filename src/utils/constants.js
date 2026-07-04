@@ -163,6 +163,11 @@ export const API_ENDPOINTS = {
   STUDENT_DASHBOARD: "/api/students/dashboard",
   // Homework endpoints
   HOMEWORK: "/api/homework",
+  PERFORMANCE: "/api/performance",
+  PERFORMANCE_STUDENT: (studentId) => `/api/performance/student/${studentId}`,
+  PERFORMANCE_ME: "/api/performance/me",
+  RULES: "/api/rules",
+  RULE_STATUS: (id) => `/api/rules/${id}/status`,
   // Promotion endpoints
   PROMOTION_ELIGIBILITY: (studentId) => `/api/promotions/eligibility/${studentId}`,
   PROMOTE_STUDENT: (studentId) => `/api/promotions/promote/${studentId}`,

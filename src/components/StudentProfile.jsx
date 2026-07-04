@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { studentService } from '../services/studentService';
 import { feeService } from '../services/feeService';
+import { performanceService } from '../services/performanceService';
 import StudentFeesPanel from './students/StudentFeesPanel';
+import BehaviorScorePanel from './performance/BehaviorScorePanel';
 import { formatDate } from '../utils/studentUtils';
 import {
   UserIcon,
@@ -22,6 +24,7 @@ const StudentProfile = () => {
   const { user } = useAuth();
   const [student, setStudent] = useState(null);
   const [feeData, setFeeData] = useState(null);
+  const [performanceData, setPerformanceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -32,13 +35,15 @@ const StudentProfile = () => {
       try {
         setLoading(true);
         setError('');
-        const [profile, fees] = await Promise.all([
+        const [profile, fees, performance] = await Promise.all([
           studentService.getStudentProfile(),
           feeService.getMyFees().catch(() => null),
+          performanceService.getMyPerformance().catch(() => null),
         ]);
         if (!cancelled) {
           setStudent(profile);
           setFeeData(fees);
+          setPerformanceData(performance);
         }
       } catch (err) {
         console.error('Error loading student profile:', err);
@@ -179,6 +184,10 @@ const StudentProfile = () => {
             </div>
 
             <div className="space-y-4 md:col-span-2">
+              <BehaviorScorePanel data={performanceData} />
+            </div>
+
+            <div className="space-y-4 md:col-span-2">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                 <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
                 Attendance Summary
@@ -198,6 +207,8 @@ const StudentProfile = () => {
               <QuickLink href="/fees" icon={BanknotesIcon} label="Fee Details" color="green" />
               <QuickLink href="/timetable" icon={CalendarIcon} label="Timetable" color="purple" />
               <QuickLink href="/exams" icon={IdentificationIcon} label="Exams" color="yellow" />
+              <QuickLink href="/performance" icon={IdentificationIcon} label="Performance" color="blue" />
+              <QuickLink href="/rules" icon={IdentificationIcon} label="Rules" color="purple" />
             </div>
           </div>
         </div>

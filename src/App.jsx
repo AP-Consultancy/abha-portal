@@ -39,6 +39,8 @@ import RoleAwareDashboard from "./components/RoleAwareDashboard";
 import HomeworkTab from "./components/homework/HomeworkTab";
 import StudentProfile from "./components/StudentProfile";
 import RoleAwareProfile from "./components/RoleAwareProfile";
+import StudentPerformance from "./pages/StudentPerformance";
+import RulesRegulations from "./pages/RulesRegulations";
 import Bonafide from "./pages/Bonafide";
 
 function App() {
@@ -135,6 +137,16 @@ function App() {
 
                             {/* Homework - Role-aware component */}
                             <Route path="/homework" element={<HomeworkTab />} />
+
+                            <Route
+                              path="/performance"
+                              element={<StudentPerformance />}
+                            />
+
+                            <Route
+                              path="/rules"
+                              element={<RulesRegulations />}
+                            />
 
                             {/* Bonafide - Admin & teachers only */}
                             <Route
