@@ -6,32 +6,6 @@ const display = (value) => {
   return String(value);
 };
 
-const renderListCell = (value) => {
-  const text = display(value);
-  if (text === "—") return text;
-  const parts = text.split(/;\s*/).filter(Boolean);
-  if (parts.length <= 1) {
-    const commaParts = text.split(/,\s*/).filter(Boolean);
-    if (commaParts.length > 2) {
-      return (
-        <ul className="m-0 list-none space-y-0.5 p-0">
-          {commaParts.map((part, i) => (
-            <li key={i}>{part}</li>
-          ))}
-        </ul>
-      );
-    }
-    return text;
-  }
-  return (
-    <ul className="m-0 list-none space-y-0.5 p-0">
-      {parts.map((part, i) => (
-        <li key={i}>{part}</li>
-      ))}
-    </ul>
-  );
-};
-
 const SUBJECT_COLUMNS = [
   { key: "id", label: "ID", get: (s) => display(s.id) },
   { key: "name", label: "Subject Name", get: (s) => display(s.name) },
@@ -47,21 +21,79 @@ const SUBJECT_COLUMNS = [
   {
     key: "teachers",
     label: "Teachers (from assignments)",
-    get: (s) => s.teachersDisplay,
-    list: true,
-    minWidth: "12rem",
+    custom: "assignments-teachers",
+    minWidth: "14rem",
   },
   {
     key: "classes",
     label: "Class / Sections (from assignments)",
-    get: (s) => s.classSectionsDisplay,
-    list: true,
+    custom: "assignments-classes",
     minWidth: "14rem",
   },
   { key: "assignments", label: "# Assignments", get: (s) => display(s.assignmentCount) },
 ];
 
-const SubjectTable = ({ subjects, onEdit, onDelete, onAssign }) => {
+const renderAssignmentTeachers = (subject, onRemoveAssignment, removingKey) => {
+  const assignments = subject.assignments || [];
+  if (!assignments.length) return "—";
+
+  return (
+    <ul className="m-0 list-none space-y-1.5 p-0">
+      {assignments.map((assignment) => {
+        const removeKey = `${subject.id}-${assignment.assignmentId}`;
+        return (
+          <li
+            key={assignment.assignmentId || removeKey}
+            className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-2 py-1.5"
+          >
+            <span className="min-w-0 flex-1 text-gray-800">{assignment.teacherName}</span>
+            {onRemoveAssignment && (
+              <button
+                type="button"
+                onClick={() => onRemoveAssignment(subject, assignment)}
+                disabled={removingKey === removeKey}
+                title={`Remove ${assignment.teacherName}`}
+                className="shrink-0 rounded p-1 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
+
+const renderAssignmentClasses = (subject) => {
+  const assignments = subject.assignments || [];
+  if (!assignments.length) return "—";
+
+  return (
+    <ul className="m-0 list-none space-y-1.5 p-0">
+      {assignments.map((assignment) => (
+        <li
+          key={`class-${assignment.assignmentId}`}
+          className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-gray-700"
+        >
+          {assignment.classSectionLabel}
+          {assignment.isClassTeacher && (
+            <span className="ml-1 text-xs text-green-700">(Class teacher)</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+const SubjectTable = ({
+  subjects,
+  onEdit,
+  onDelete,
+  onAssign,
+  onRemoveAssignment,
+  removingKey,
+}) => {
   if (!subjects.length) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">
@@ -75,9 +107,8 @@ const SubjectTable = ({ subjects, onEdit, onDelete, onAssign }) => {
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
         <p className="text-sm text-gray-600">
           Master catalog from <code className="text-xs bg-gray-100 px-1 rounded">subjects</code>{" "}
-          table. Who teaches what is stored in{" "}
-          <code className="text-xs bg-gray-100 px-1 rounded">teacher_class_assignments</code>{" "}
-          (assign via Employees / Add Teacher).
+          table. Use the bin icon next to a teacher to remove that assignment, or{" "}
+          <strong>Assign</strong> to add a new one.
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -91,7 +122,7 @@ const SubjectTable = ({ subjects, onEdit, onDelete, onAssign }) => {
                 <th
                   key={col.key}
                   className={`px-3 py-3 text-left text-xs font-semibold uppercase align-top ${
-                    col.list ? "whitespace-normal" : "whitespace-nowrap"
+                    col.custom ? "whitespace-normal" : "whitespace-nowrap"
                   }`}
                   style={col.minWidth ? { minWidth: col.minWidth } : undefined}
                 >
@@ -117,7 +148,7 @@ const SubjectTable = ({ subjects, onEdit, onDelete, onAssign }) => {
                     <td
                       key={col.key}
                       className={`px-3 py-3 text-gray-800 align-top ${
-                        col.list
+                        col.custom
                           ? "whitespace-normal"
                           : col.wide
                             ? "whitespace-normal min-w-[12rem] max-w-md"
@@ -125,7 +156,15 @@ const SubjectTable = ({ subjects, onEdit, onDelete, onAssign }) => {
                       }`}
                       style={col.minWidth ? { minWidth: col.minWidth } : undefined}
                     >
-                      {col.list ? renderListCell(col.get(subject)) : col.get(subject)}
+                      {col.custom === "assignments-teachers"
+                        ? renderAssignmentTeachers(
+                            subject,
+                            onRemoveAssignment,
+                            removingKey
+                          )
+                        : col.custom === "assignments-classes"
+                          ? renderAssignmentClasses(subject)
+                          : col.get(subject)}
                     </td>
                   ))}
                   <td className={`px-3 py-3 sticky right-0 z-[1] ${rowBg} whitespace-nowrap`}>
@@ -153,6 +192,7 @@ const SubjectTable = ({ subjects, onEdit, onDelete, onAssign }) => {
                         type="button"
                         onClick={() => onDelete(subject)}
                         className="inline-flex items-center px-2 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-xs"
+                        title="Delete subject from catalog"
                       >
                         <TrashIcon className="h-4 w-4 mr-1" />
                         Delete

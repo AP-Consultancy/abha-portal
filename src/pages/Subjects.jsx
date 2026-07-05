@@ -17,6 +17,7 @@ const Subjects = () => {
   const [addForm, setAddForm] = useState({ name: '', code: '', grade: '', hoursPerWeek: 4, description: '' });
   const [summary, setSummary] = useState(null);
   const [assignSubject, setAssignSubject] = useState(null);
+  const [removingKey, setRemovingKey] = useState(null);
 
   useEffect(() => {
     fetchSubjects();
@@ -70,6 +71,28 @@ const Subjects = () => {
         console.error('Error deleting subject:', err);
         // Handle error (show toast, etc.)
       }
+    }
+  };
+
+  const handleRemoveAssignment = async (subject, assignment) => {
+    const subjectId = subject._id || subject.id;
+    const removeKey = `${subjectId}-${assignment.assignmentId}`;
+    if (
+      !window.confirm(
+        `Remove ${assignment.teacherName} from ${subject.name} (${assignment.classSectionLabel})?`
+      )
+    ) {
+      return;
+    }
+    try {
+      setRemovingKey(removeKey);
+      await subjectService.removeTeacherAssignment(subjectId, assignment.assignmentId);
+      await fetchSubjects();
+    } catch (err) {
+      console.error('Error removing teacher assignment:', err);
+      setError(err.message || 'Failed to remove teacher assignment');
+    } finally {
+      setRemovingKey(null);
     }
   };
 
@@ -191,6 +214,8 @@ const Subjects = () => {
       <SubjectTable
         subjects={subjects}
         onAssign={(subject) => setAssignSubject(subject)}
+        onRemoveAssignment={handleRemoveAssignment}
+        removingKey={removingKey}
         onEdit={(subject) => {
           setEditingSubject(subject);
           setEditForm({

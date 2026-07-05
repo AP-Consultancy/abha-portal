@@ -4,120 +4,225 @@ import { useAuth } from '../contexts/AuthContext';
 import { CogIcon, UserCircleIcon, PaintBrushIcon, BellIcon, ShieldCheckIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { adminService } from '../services/adminService';
 
+const IDENTIFIER_LABELS = {
+  student: 'Scholar number',
+  teacher: 'Employee ID',
+  admin: 'Admin email',
+};
+
+const FormMessage = ({ message }) => {
+  if (!message) return null;
+  const isSuccess = /success|updated|reset successfully/i.test(message);
+  return (
+    <p
+      className={`text-sm rounded-lg px-3 py-2 ${
+        isSuccess ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+      }`}
+    >
+      {message}
+    </p>
+  );
+};
+
 const OwnPasswordForm = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const handleSubmit = async () => {
-    if (!currentPassword || !newPassword) { alert('Enter current and new password'); return; }
-    if (newPassword !== confirmPassword) { alert('Passwords do not match'); return; }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) {
+      setMessage('Please enter your current password and a new password.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage('New password and confirmation do not match.');
+      return;
+    }
     try {
       setBusy(true);
+      setMessage('');
       await adminService.changeOwnPassword(currentPassword, newPassword);
-      alert('Password updated');
-      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
-    } catch (e) {
-      alert(e.message || 'Failed to update password');
+      setMessage('Password updated successfully.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setMessage(err.message || 'Failed to update password.');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <form onSubmit={handleSubmit} className="max-w-md space-y-4">
+      <p className="text-sm text-gray-600">
+        Update the password for your logged-in account.
+      </p>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-        <input type="password" value={currentPassword} onChange={(e)=>setCurrentPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+        <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+        <input
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          autoComplete="current-password"
+        />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-        <input type="password" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+        <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          autoComplete="new-password"
+        />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-        <input type="password" value={confirmPassword} onChange={(e)=>setConfirmPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          autoComplete="new-password"
+        />
       </div>
-      <button onClick={handleSubmit} disabled={busy} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">{busy ? 'Updating...' : 'Update Password'}</button>
-    </div>
+      <FormMessage message={message} />
+      <button
+        type="submit"
+        disabled={busy}
+        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+      >
+        {busy ? 'Updating...' : 'Update password'}
+      </button>
+    </form>
   );
 };
 
 const AdminResetUserPasswordForm = () => {
   const [userType, setUserType] = useState('student');
-  const [userId, setUserId] = useState('');
-  const [enrollmentNo, setEnrollmentNo] = useState('');
-  const [scholarNumber, setScholarNumber] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const handleSubmit = async () => {
-    if (!newPassword) { alert('Enter new password'); return; }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!identifier.trim()) {
+      setMessage(`Please enter the ${IDENTIFIER_LABELS[userType].toLowerCase()}.`);
+      return;
+    }
+    if (!newPassword) {
+      setMessage('Please enter a new password.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage('Passwords do not match.');
+      return;
+    }
+
     const payload = { userType, newPassword };
-    if (userId) payload.userId = userId;
-    if (enrollmentNo) payload.enrollmentNo = enrollmentNo;
-    if (scholarNumber) payload.scholarNumber = scholarNumber;
+    if (userType === 'student') {
+      payload.scholarNumber = identifier.trim();
+    } else {
+      payload.enrollmentNo = identifier.trim();
+    }
+
     try {
       setBusy(true);
+      setMessage('');
       await adminService.changeUserPassword(payload);
-      alert('Password reset successfully');
-      setUserId(''); setEnrollmentNo(''); setScholarNumber(''); setNewPassword('');
-    } catch (e) {
-      alert(e.message || 'Failed to reset password');
+      setMessage('Password reset successfully.');
+      setIdentifier('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setMessage(err.message || 'Failed to reset password.');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">User Type</label>
-          <select value={userType} onChange={(e)=>setUserType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">User ID (optional)</label>
-          <input value={userId} onChange={(e)=>setUserId(e.target.value)} placeholder="Mongo _id" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Enrollment No (teacher/admin) (optional)</label>
-          <input value={enrollmentNo} onChange={(e)=>setEnrollmentNo(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-        </div>
-        {userType === 'student' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Scholar Number (student) (optional)</label>
-            <input value={scholarNumber} onChange={(e)=>setScholarNumber(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-          </div>
-        )}
+    <form onSubmit={handleSubmit} className="max-w-md space-y-4">
+      <p className="text-sm text-gray-600">
+        Reset a student, teacher, or admin password using their login ID.
+      </p>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">User type</label>
+        <select
+          value={userType}
+          onChange={(e) => {
+            setUserType(e.target.value);
+            setIdentifier('');
+          }}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="student">Student</option>
+          <option value="teacher">Teacher / Employee</option>
+          <option value="admin">Admin</option>
+        </select>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-        <input type="password" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {IDENTIFIER_LABELS[userType]}
+        </label>
+        <input
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          placeholder={
+            userType === 'student'
+              ? 'e.g. SCH2024001'
+              : userType === 'teacher'
+                ? 'e.g. EMP100'
+                : 'e.g. admin@school.com'
+          }
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
       </div>
-      <button onClick={handleSubmit} disabled={busy} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">{busy ? 'Resetting...' : 'Reset Password'}</button>
-    </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+      <FormMessage message={message} />
+      <button
+        type="submit"
+        disabled={busy}
+        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+      >
+        {busy ? 'Resetting...' : 'Reset password'}
+      </button>
+    </form>
   );
 };
 
 const Settings = () => {
-  const { theme, primaryColor, direction, toggleTheme, changePrimaryColor, toggleDirection } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
 
-  const colorOptions = [
-    { name: 'Blue', value: 'blue', color: 'bg-blue-500' },
-    { name: 'Green', value: 'green', color: 'bg-green-500' },
-    { name: 'Purple', value: 'purple', color: 'bg-purple-500' },
-    { name: 'Red', value: 'red', color: 'bg-red-500' },
-    { name: 'Yellow', value: 'yellow', color: 'bg-yellow-500' },
-    { name: 'Pink', value: 'pink', color: 'bg-pink-500' }
-  ];
+  const selectTheme = (next) => {
+    if (theme !== next) toggleTheme();
+  };
 
   const tabs = [
     { id: 'general', name: 'General', icon: CogIcon },
@@ -268,84 +373,34 @@ const Settings = () => {
             )}
 
             {activeTab === 'appearance' && (
-              <div className="space-y-6">
+              <div className="space-y-4 max-w-md">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Appearance Settings</h3>
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Theme</label>
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={toggleTheme}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-colors ${
-                            theme === 'light'
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          <span>☀️</span>
-                          <span>Light</span>
-                        </button>
-                        <button
-                          onClick={toggleTheme}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-colors ${
-                            theme === 'dark'
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          <span>🌙</span>
-                          <span>Dark</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Primary Color</label>
-                      <div className="grid grid-cols-3 gap-3">
-                        {colorOptions.map((color) => (
-                          <button
-                            key={color.value}
-                            onClick={() => changePrimaryColor(color.value)}
-                            className={`flex items-center space-x-3 px-4 py-3 rounded-lg border-2 transition-colors ${
-                              primaryColor === color.value
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-300 hover:border-gray-400'
-                            }`}
-                          >
-                            <div className={`w-4 h-4 rounded-full ${color.color}`}></div>
-                            <span className="text-sm font-medium">{color.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Text Direction</label>
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={toggleDirection}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-colors ${
-                            direction === 'ltr'
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          <span>LTR</span>
-                        </button>
-                        <button
-                          onClick={toggleDirection}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-colors ${
-                            direction === 'rtl'
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          <span>RTL</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Appearance</h3>
+                  <p className="text-sm text-gray-500 mb-4">Choose light or dark mode for the portal.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => selectTheme('light')}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
+                      theme === 'light'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                    }`}
+                  >
+                    Light
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectTheme('dark')}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
+                      theme === 'dark'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                    }`}
+                  >
+                    Dark
+                  </button>
                 </div>
               </div>
             )}
@@ -385,16 +440,18 @@ const Settings = () => {
             )}
 
             {activeTab === 'security' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Security Settings</h3>
+              <div className="space-y-8">
+                <section>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Change your password</h3>
+                  <p className="text-sm text-gray-500 mb-4">Use a strong password you do not use elsewhere.</p>
                   <OwnPasswordForm />
-                  
-                  <div className="mt-8 pt-6 border-t border-gray-200">
-                    <h4 className="text-md font-medium text-gray-900 mb-3">Reset Another User's Password</h4>
-                    <AdminResetUserPasswordForm />
-                  </div>
-                </div>
+                </section>
+
+                <section className="pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Reset another user&apos;s password</h3>
+                  <p className="text-sm text-gray-500 mb-4">Admin only — pick the user type and enter their login ID.</p>
+                  <AdminResetUserPasswordForm />
+                </section>
               </div>
             )}
 

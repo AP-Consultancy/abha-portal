@@ -5,13 +5,33 @@ import {
   AcademicCapIcon, 
   UserGroupIcon,
   CalendarIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  CurrencyDollarIcon,
+  BanknotesIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { studentService } from '../services/studentService';
 import { teacherService } from '../services/teacherService';
 import { classService } from '../services/classService';
 import { examService } from '../services/examService';
 import { attendanceService } from '../services/attendanceService';
+import { teacherAttendanceService } from '../services/teacherAttendanceService';
+import { salaryService } from '../services/salaryService';
+import { feeService } from '../services/feeService';
+import { parseClassKey } from '../utils/attendanceUtils';
+
+const MONTHLY_REPORTS = [
+  'attendance-summary',
+  'teacher-attendance',
+  'salary-statement',
+  'student-fees',
+];
+
+const monthYearLabel = (month, year) =>
+  new Date(Number(year), Number(month) - 1).toLocaleDateString('en-IN', {
+    month: 'long',
+    year: 'numeric',
+  });
 
 const Reports = () => {
   const [selectedReport, setSelectedReport] = useState('');
@@ -81,6 +101,15 @@ const Reports = () => {
           break;
         case 'exam-results':
           data = await generateExamResultsReport();
+          break;
+        case 'teacher-attendance':
+          data = await generateTeacherAttendanceReport();
+          break;
+        case 'salary-statement':
+          data = await generateSalaryStatementReport();
+          break;
+        case 'student-fees':
+          data = await generateStudentFeesReport();
           break;
         default:
           setError('Invalid report type');
@@ -252,6 +281,123 @@ const Reports = () => {
     }
   };
 
+  const generateTeacherAttendanceReport = async () => {
+    const report = await teacherAttendanceService.getMonthlyReport(
+      filters.month,
+      filters.year,
+      teachers
+    );
+
+    const rows = (report.teacherAttendance || []).map((row) => ({
+      employeeName: row.teacher?.name || '',
+      employeeId: row.teacher?.employeeId || '',
+      teacherId: row.teacher?.teacherId || '',
+      totalDays: row.statistics?.totalDays ?? 0,
+      present: row.statistics?.presentDays ?? 0,
+      absent: row.statistics?.absentDays ?? 0,
+      leave: row.statistics?.leaveDays ?? 0,
+      percentage: `${row.statistics?.attendancePercentage ?? 0}%`,
+    }));
+
+    return {
+      title: `Employee Attendance — ${monthYearLabel(filters.month, filters.year)}`,
+      type: 'teacher-attendance',
+      data: rows,
+      summary: {
+        totalEmployees: report.totalEmployees || rows.length,
+        month: filters.month,
+        year: filters.year,
+        averageAttendance: report.averageAttendance ?? 0,
+      },
+    };
+  };
+
+  const generateSalaryStatementReport = async () => {
+    const monthKey = `${filters.year}-${String(filters.month).padStart(2, '0')}-01`;
+    const data = await salaryService.getRecords({ month: monthKey });
+    const records = data.salary || [];
+
+    const rows = records.map((record) => ({
+      employeeName: record.employeeName || '',
+      employeeId: record.employeeId || '',
+      teacherId: record.teacherId || '',
+      salaryMonth: record.salaryPeriod || monthYearLabel(filters.month, filters.year),
+      monthlyBasic: record.basicSalary ?? 0,
+      monthlyAllowances: record.allowances ?? 0,
+      monthlyDeductions: record.deductions ?? 0,
+      monthlyNet: record.netSalary ?? 0,
+      paidAmount: record.paidAmount ?? 0,
+      status: record.status || 'Pending',
+      paymentMode: record.paymentMode || '',
+    }));
+
+    const totalNet = rows.reduce((sum, row) => sum + Number(row.monthlyNet || 0), 0);
+    const totalPaid = rows.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0);
+
+    return {
+      title: `Monthly Salary Statement — ${monthYearLabel(filters.month, filters.year)}`,
+      type: 'salary-statement',
+      data: rows,
+      summary: {
+        totalEmployees: rows.length,
+        month: filters.month,
+        year: filters.year,
+        totalMonthlyNet: totalNet,
+        totalPaid,
+      },
+    };
+  };
+
+  const generateStudentFeesReport = async () => {
+    const payments = await feeService.listPayments({
+      payment_month: filters.month,
+      payment_year: filters.year,
+    });
+
+    let filtered = payments;
+    if (filters.class) {
+      const parsed = parseClassKey(filters.class);
+      if (parsed?.classId) {
+        filtered = payments.filter(
+          (payment) =>
+            Number(payment.class_id) === Number(parsed.classId) &&
+            (!parsed.sectionId ||
+              Number(payment.section_id) === Number(parsed.sectionId))
+        );
+      }
+    }
+
+    const rows = filtered.map((payment) => ({
+      studentName: payment.student_name || '',
+      scholarNumber: payment.scholar_no || payment.admission_no || '',
+      feeMonth: monthYearLabel(payment.payment_month || filters.month, payment.payment_year || filters.year),
+      paidAmount: payment.paid_amount ?? payment.paidAmount ?? 0,
+      dueAmount: payment.due_amount ?? payment.dueAmount ?? 0,
+      status: payment.payment_status || payment.paymentStatus || 'PENDING',
+      paymentMode: payment.payment_mode || payment.paymentMode || '',
+      receiptNumber: payment.receipt_no || payment.receiptNumber || '',
+      paymentDate: payment.payment_date
+        ? new Date(payment.payment_date).toLocaleDateString('en-IN')
+        : '',
+    }));
+
+    const totalPaid = rows.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0);
+    const totalDue = rows.reduce((sum, row) => sum + Number(row.dueAmount || 0), 0);
+
+    return {
+      title: `Monthly Student Fees — ${monthYearLabel(filters.month, filters.year)}`,
+      type: 'student-fees',
+      data: rows,
+      summary: {
+        totalRecords: rows.length,
+        month: filters.month,
+        year: filters.year,
+        totalPaid,
+        totalDue,
+      },
+    };
+  };
+
   const exportReport = () => {
     if (!reportData) return;
 
@@ -278,6 +424,18 @@ const Reports = () => {
       case 'exam-results':
         filename = `exam-results-${new Date().toISOString().split('T')[0]}.csv`;
         csvContent = generateExamResultsCSV(reportData.data);
+        break;
+      case 'teacher-attendance':
+        filename = `teacher-attendance-${filters.month}-${filters.year}.csv`;
+        csvContent = generateTeacherAttendanceCSV(reportData.data);
+        break;
+      case 'salary-statement':
+        filename = `salary-statement-${filters.month}-${filters.year}.csv`;
+        csvContent = generateSalaryStatementCSV(reportData.data);
+        break;
+      case 'student-fees':
+        filename = `student-fees-${filters.month}-${filters.year}.csv`;
+        csvContent = generateStudentFeesCSV(reportData.data);
         break;
       default:
         return;
@@ -363,7 +521,81 @@ const Reports = () => {
     return [headers, ...rows].map(row => row.join(',')).join('\n');
   };
 
+  const generateTeacherAttendanceCSV = (rows) => {
+    const headers = ['Employee Name', 'Employee ID', 'Teacher ID', 'Total Days', 'Present', 'Absent', 'Leave', 'Percentage'];
+    const data = rows.map((r) => [
+      r.employeeName,
+      r.employeeId,
+      r.teacherId,
+      r.totalDays,
+      r.present,
+      r.absent,
+      r.leave,
+      r.percentage,
+    ]);
+    return [headers, ...data].map((row) => row.join(',')).join('\n');
+  };
+
+  const generateSalaryStatementCSV = (rows) => {
+    const headers = [
+      'Employee Name',
+      'Employee ID',
+      'Teacher ID',
+      'Salary Month',
+      'Monthly Basic',
+      'Monthly Allowances',
+      'Monthly Deductions',
+      'Monthly Net',
+      'Paid Amount',
+      'Status',
+      'Payment Mode',
+    ];
+    const data = rows.map((r) => [
+      r.employeeName,
+      r.employeeId,
+      r.teacherId,
+      r.salaryMonth,
+      r.monthlyBasic,
+      r.monthlyAllowances,
+      r.monthlyDeductions,
+      r.monthlyNet,
+      r.paidAmount,
+      r.status,
+      r.paymentMode,
+    ]);
+    return [headers, ...data].map((row) => row.join(',')).join('\n');
+  };
+
+  const generateStudentFeesCSV = (rows) => {
+    const headers = [
+      'Student Name',
+      'Scholar Number',
+      'Fee Month',
+      'Paid Amount',
+      'Due Amount',
+      'Status',
+      'Payment Mode',
+      'Receipt Number',
+      'Payment Date',
+    ];
+    const data = rows.map((r) => [
+      r.studentName,
+      r.scholarNumber,
+      r.feeMonth,
+      r.paidAmount,
+      r.dueAmount,
+      r.status,
+      r.paymentMode,
+      r.receiptNumber,
+      r.paymentDate,
+    ]);
+    return [headers, ...data].map((row) => row.join(',')).join('\n');
+  };
+
   const formatSummaryValue = (key, value) => {
+    if (typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('net') || key.toLowerCase().includes('paid') || key.toLowerCase().includes('due'))) {
+      return `₹${Number(value).toLocaleString('en-IN')}`;
+    }
     if (typeof value === 'number' && key.toLowerCase().includes('percentage')) {
       return `${value.toFixed(1)}%`;
     }
@@ -398,7 +630,10 @@ const Reports = () => {
             { id: 'student-list', title: 'Student List', icon: UserGroupIcon, description: 'Complete student roster with details' },
             { id: 'teacher-list', title: 'Teacher List', icon: AcademicCapIcon, description: 'Staff directory and information' },
             { id: 'class-summary', title: 'Class Summary', icon: DocumentTextIcon, description: 'Class-wise student distribution' },
-            { id: 'attendance-summary', title: 'Attendance Summary', icon: CalendarIcon, description: 'Monthly attendance statistics' },
+            { id: 'attendance-summary', title: 'Student Attendance', icon: CalendarIcon, description: 'Monthly student attendance by class' },
+            { id: 'teacher-attendance', title: 'Employee Attendance', icon: ClipboardDocumentListIcon, description: 'Monthly teacher/employee attendance' },
+            { id: 'salary-statement', title: 'Salary Statement', icon: CurrencyDollarIcon, description: 'Monthly salary statement for all employees' },
+            { id: 'student-fees', title: 'Student Fees', icon: BanknotesIcon, description: 'Monthly student fee payments' },
             { id: 'exam-results', title: 'Exam Results', icon: ChartBarIcon, description: 'Examination performance data' }
           ].map((report) => (
             <button
@@ -423,23 +658,42 @@ const Reports = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Report Filters</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {selectedReport === 'attendance-summary' && (
+            {MONTHLY_REPORTS.includes(selectedReport) && (
               <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Class</label>
-                  <select
-                    value={filters.class}
-                    onChange={(e) => setFilters(prev => ({ ...prev, class: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select Class</option>
-                    {classes.map(cls => (
-                      <option key={cls._id} value={cls._id}>
-                        {cls.name} - Section {cls.section}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {selectedReport === 'attendance-summary' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Class</label>
+                    <select
+                      value={filters.class}
+                      onChange={(e) => setFilters(prev => ({ ...prev, class: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Class</option>
+                      {classes.map(cls => (
+                        <option key={cls._id} value={cls._id}>
+                          {cls.name} - Section {cls.section}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {selectedReport === 'student-fees' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Class (optional)</label>
+                    <select
+                      value={filters.class}
+                      onChange={(e) => setFilters(prev => ({ ...prev, class: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">All Classes</option>
+                      {classes.map(cls => (
+                        <option key={cls._id} value={cls._id}>
+                          {cls.name} - Section {cls.section}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
                   <select
