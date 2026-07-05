@@ -166,6 +166,9 @@ export const API_ENDPOINTS = {
   TIMETABLE_CLASS: (classId) => `/api/timetable/class/${classId}`,
   TIMETABLE_STUDENT: (id) => `/api/timetable/student/${id}`,
   TIMETABLE_TEACHER: (id) => `/api/timetable/teacher/${id}`,
+  TIMETABLE_UPSERT: "/api/timetable/entry/upsert",
+  TIMETABLE_DELETE: "/api/timetable/entry/delete",
+  TIMETABLE_BULK_UPLOAD: "/api/timetable/bulk-upload",
   STUDENT_DASHBOARD: "/api/students/dashboard",
   // Homework endpoints
   HOMEWORK: "/api/homework",
