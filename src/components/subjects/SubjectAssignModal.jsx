@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { subjectService } from "../../services/subjectService";
 import { teacherService } from "../../services/teacherService";
 import {
@@ -14,6 +14,7 @@ const SubjectAssignModal = ({ subject, onClose, onSaved }) => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     teacherId: "",
@@ -24,12 +25,14 @@ const SubjectAssignModal = ({ subject, onClose, onSaved }) => {
   });
 
   const load = async () => {
+    const subjectId = subject?.id || subject?._id;
+    if (!subjectId) return;
     try {
       setLoading(true);
       setError("");
       const [teacherRes, assignRes] = await Promise.all([
         teacherService.getAllTeachers(),
-        subjectService.getSubjectAssignments(subject.id),
+        subjectService.getSubjectAssignments(subjectId),
       ]);
       setTeachers(teacherRes.teachers || []);
       setAssignments(assignRes.assignments || []);
@@ -41,11 +44,14 @@ const SubjectAssignModal = ({ subject, onClose, onSaved }) => {
   };
 
   useEffect(() => {
-    if (subject?.id) load();
-  }, [subject?.id]);
+    const subjectId = subject?.id || subject?._id;
+    if (subjectId) load();
+  }, [subject?.id, subject?._id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const subjectId = subject?.id || subject?._id;
+    if (!subjectId) return;
     if (!form.teacherId || !form.classId || !form.section) {
       setError("Select teacher, class, and section");
       return;
@@ -58,7 +64,7 @@ const SubjectAssignModal = ({ subject, onClose, onSaved }) => {
     try {
       setSaving(true);
       setError("");
-      await subjectService.assignTeacherToSubject(subject.id, {
+      await subjectService.assignTeacherToSubject(subjectId, {
         teacher_id: form.teacherId,
         class_id: Number(form.classId),
         section_id: sectionId,
@@ -76,6 +82,28 @@ const SubjectAssignModal = ({ subject, onClose, onSaved }) => {
       setError(e.message || "Failed to save assignment");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId, teacherName) => {
+    const subjectId = subject.id || subject._id;
+    if (
+      !window.confirm(
+        `Remove ${teacherName || "this teacher"} from ${subject.name}?`
+      )
+    ) {
+      return;
+    }
+    try {
+      setRemovingId(assignmentId);
+      setError("");
+      await subjectService.removeTeacherAssignment(subjectId, assignmentId);
+      await load();
+      onSaved?.();
+    } catch (e) {
+      setError(e.message || "Failed to remove assignment");
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -198,18 +226,31 @@ const SubjectAssignModal = ({ subject, onClose, onSaved }) => {
                     {assignments.map((a) => (
                       <li
                         key={a.assignmentId}
-                        className="border border-gray-200 rounded-lg px-3 py-2 bg-gray-50"
+                        className="flex items-start justify-between gap-3 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50"
                       >
-                        <span className="font-medium">{a.teacherName}</span>
-                        <span className="text-gray-600">
-                          {" "}
-                          — {a.className} Section {a.sectionName}
-                        </span>
-                        {a.isClassTeacher && (
-                          <span className="ml-2 text-xs text-green-700 bg-green-100 px-1.5 py-0.5 rounded">
-                            Class teacher
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium">{a.teacherName}</span>
+                          <span className="text-gray-600">
+                            {" "}
+                            — {a.className} Section {a.sectionName}
                           </span>
-                        )}
+                          {a.isClassTeacher && (
+                            <span className="ml-2 text-xs text-green-700 bg-green-100 px-1.5 py-0.5 rounded">
+                              Class teacher
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemoveAssignment(a.assignmentId, a.teacherName)
+                          }
+                          disabled={removingId === a.assignmentId}
+                          title="Remove teacher assignment"
+                          className="shrink-0 rounded-md p-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
                       </li>
                     ))}
                   </ul>

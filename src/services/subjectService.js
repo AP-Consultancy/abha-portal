@@ -99,6 +99,17 @@ export const subjectService = {
     }
   },
 
+  removeTeacherAssignment: async (subjectId, assignmentId) => {
+    try {
+      return await apiService.delete(
+        `${API_ENDPOINTS.SUBJECTS}/${subjectId}/assignments/${assignmentId}`
+      );
+    } catch (error) {
+      console.error('Error removing teacher assignment:', error);
+      throw error;
+    }
+  },
+
   getSubjectsByClass: async (classId) => {
     try {
       const data = await apiService.get(`${API_ENDPOINTS.SUBJECTS}/class/${classId}`);

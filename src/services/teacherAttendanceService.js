@@ -186,4 +186,56 @@ export const teacherAttendanceService = {
       statistics: calculateStatistics(attendance),
     };
   },
+
+  getMonthlyReport: async (month, year, roster = []) => {
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const endDate = toLocalDateKey(new Date(Number(year), Number(month), 0));
+    const rosterList = Array.isArray(roster) ? roster : roster?.teachers || [];
+
+    const data = await teacherAttendanceService.getAttendance({});
+    const records = data.attendance.filter((record) =>
+      isWithinDateRange(record, startDate, endDate)
+    );
+
+    const recordsByTeacher = new Map();
+    records.forEach((record) => {
+      const key = String(record.teacherId);
+      if (!recordsByTeacher.has(key)) recordsByTeacher.set(key, []);
+      recordsByTeacher.get(key).push(record);
+    });
+
+    const teacherAttendance = rosterList.map((teacher) => {
+      const tid = teacherRosterKey(teacher);
+      const teacherRecords = recordsByTeacher.get(tid) || [];
+      const statistics = calculateStatistics(teacherRecords);
+      return {
+        teacher: {
+          name:
+            teacher.name ||
+            [teacher.firstName, teacher.lastName].filter(Boolean).join(" ").trim() ||
+            "Employee",
+          employeeId: teacher.enrollmentNo || teacher.employee_id || "—",
+          teacherId: tid,
+        },
+        statistics,
+      };
+    });
+
+    const averageAttendance = teacherAttendance.length
+      ? Math.round(
+          teacherAttendance.reduce(
+            (sum, row) => sum + (row.statistics?.attendancePercentage || 0),
+            0
+          ) / teacherAttendance.length
+        )
+      : 0;
+
+    return {
+      teacherAttendance,
+      totalEmployees: rosterList.length,
+      averageAttendance,
+      month,
+      year,
+    };
+  },
 };
