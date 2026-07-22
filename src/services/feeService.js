@@ -1,5 +1,5 @@
 import apiService from "./apiService";
-import { API_ENDPOINTS } from "../utils/constants";
+import { API_BASE_URL, API_ENDPOINTS } from "../utils/constants";
 
 const normalizeFeeResponse = (data = {}) => {
   const payments = (data.payments || data.feeCollections || []).map((row) => ({
@@ -88,6 +88,32 @@ export const feeService = {
       console.error("Error marking payment:", error);
       throw new Error(error.message || "Failed to record payment");
     }
+  },
+
+  async bulkUploadFeeStructure(file) {
+    if (!file) {
+      throw new Error("Please select a CSV file");
+    }
+
+    const formData = new FormData();
+    formData.append("csvFile", file);
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(
+      `${API_BASE_URL}${API_ENDPOINTS.FEES_STRUCTURE_BULK_UPLOAD}`,
+      {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to upload fee structure");
+    }
+
+    return data;
   },
 
   async listPayments(filters = {}) {

@@ -17,6 +17,7 @@ import {
 } from "../utils/constants";
 import { resolveSectionIdForClass, sectionIdToLabel } from "../utils/studentUtils";
 import FeePaymentReceipt from "../components/fees/FeePaymentReceipt";
+import CSVUpload from "../components/common/CSVUpload";
 import {
   formatCurrency,
   formatDate,
@@ -59,6 +60,7 @@ const AdminPayments = () => {
 
   const [allPayments, setAllPayments] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [structureSummary, setStructureSummary] = useState("");
   const [historyFilters, setHistoryFilters] = useState({
     scholar_no: "",
     payment_status: "",
@@ -217,6 +219,22 @@ const AdminPayments = () => {
     }
   }, [activeTab]);
 
+  const handleFeeStructureUpload = async (_formData, file) => {
+    const result = await feeService.bulkUploadFeeStructure(file);
+    const assigned = (result.assignments || []).reduce(
+      (sum, row) => sum + Number(row?.assigned || 0),
+      0
+    );
+    const updated = (result.assignments || []).reduce(
+      (sum, row) => sum + Number(row?.updated || 0),
+      0
+    );
+    setStructureSummary(
+      `${result.message || "Fee structure uploaded."} ${result.updated || 0} class(es) updated. Student fee assignments: ${assigned} new, ${updated} updated.`
+    );
+    setMessage("Fee structure uploaded successfully.");
+  };
+
   const handleRecordPayment = async () => {
     if (!studentFee?.student?.id) {
       setMessage("Search and select a student first.");
@@ -350,6 +368,17 @@ const AdminPayments = () => {
             }`}
           >
             Payment History
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("structure")}
+            className={`py-4 border-b-2 font-medium text-sm ${
+              activeTab === "structure"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500"
+            }`}
+          >
+            Fee Structure
           </button>
         </div>
 
@@ -893,6 +922,52 @@ const AdminPayments = () => {
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === "structure" && (
+            <div className="space-y-6">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
+                <h2 className="text-lg font-semibold text-emerald-900 mb-2">
+                  Upload class fee structure
+                </h2>
+                <p className="text-sm text-emerald-800/90 mb-1">
+                  Set monthly and yearly fees for each class. When you upload, existing
+                  structures for the same class and academic year are updated.
+                </p>
+                <p className="text-sm text-emerald-800/90">
+                  Students already in that class get fee assignments automatically. New
+                  students imported later also use the class fee structure.
+                </p>
+                <ul className="mt-4 text-sm text-gray-700 list-disc list-inside space-y-1">
+                  <li>
+                    <strong>Academic Year</strong> — e.g. 2026-27 (must match the active year in the system)
+                  </li>
+                  <li>
+                    <strong>Class</strong> — class name: Nursery, KG1, 8th, 10th, etc.
+                  </li>
+                  <li>
+                    <strong>Monthly Fee</strong> — required
+                  </li>
+                  <li>
+                    <strong>Yearly Fee</strong> — optional (defaults to monthly × 12 if blank)
+                  </li>
+                </ul>
+              </div>
+
+              {structureSummary && (
+                <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                  {structureSummary}
+                </p>
+              )}
+
+              <CSVUpload
+                title="Upload Fee Structure CSV"
+                description="One row per class. Use the sample file as a template and edit the fee amounts."
+                entityType="fee structure"
+                sampleDownloadUrl="/sample_fee_structure_bulk_upload.csv"
+                onUpload={handleFeeStructureUpload}
+              />
             </div>
           )}
         </div>

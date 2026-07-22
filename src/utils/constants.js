@@ -153,6 +153,7 @@ export const API_ENDPOINTS = {
   // Fee endpoints
   FEES: "/api/fees",
   FEES_ME: "/api/fees/me",
+  FEES_STRUCTURE_BULK_UPLOAD: "/api/fees/structure/bulk-upload",
   PAYMENTS: "/api/payments",
   MANAGE_PAYMENT: "/api/payments/manage",
   // Class endpoints
