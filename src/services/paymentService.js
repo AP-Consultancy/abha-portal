@@ -33,6 +33,33 @@ export const paymentService = {
     return Array.isArray(rows) ? rows.map(normalizePayment) : [];
   },
 
+  getTransactionHistory: async (studentId, filters = {}) => {
+    const rows = await paymentService.getPayments({
+      student_id: studentId,
+      ...filters,
+    });
+    return {
+      data: {
+        transactions: rows,
+        currentPage: 1,
+        totalPages: 1,
+        total: rows.length,
+      },
+    };
+  },
+
+  createOrder: async () => {
+    throw new Error(
+      "Online card payment is not enabled. Pay at the school office."
+    );
+  },
+
+  verifyPayment: async () => {
+    throw new Error(
+      "Online card payment is not enabled. Pay at the school office."
+    );
+  },
+
   managePayment: async (payload) => {
     const body = {
       action: payload.action ?? 1,

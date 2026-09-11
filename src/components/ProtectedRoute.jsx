@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTokenRefresh } from '../hooks/useTokenRefresh';
 
-const ProtectedRoute = ({ children, requiredRoles }) => {
+const ProtectedRoute = ({ children, requiredRoles, allowedRoles }) => {
   const { user, loading, hasRole } = useAuth();
   
   // Set up token refresh
@@ -22,7 +22,8 @@ const ProtectedRoute = ({ children, requiredRoles }) => {
   }
 
   // If specific roles are required, check if user has permission
-  if (requiredRoles && !hasRole(requiredRoles)) {
+  const roles = requiredRoles || allowedRoles;
+  if (roles && !hasRole(roles)) {
     const userRole = user.userRole || (user.student?.user || user.teacher?.user || user.admin?.user || '').toLowerCase();
     
     // Redirect to appropriate page based on user role

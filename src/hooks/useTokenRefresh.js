@@ -1,46 +1,45 @@
-import { useEffect, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useEffect, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext";
+
+const FIVE_MINUTES = 5 * 60 * 1000;
+
+const readTokenExpiryMs = () => {
+  const token = localStorage.getItem("token");
+  if (!token || token.split(".").length < 2) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
 
 export const useTokenRefresh = () => {
   const { user, logout } = useAuth();
   const refreshTimeoutRef = useRef(null);
 
   useEffect(() => {
-    if (!user || !user.token) {
-      return;
+    if (!user) {
+      return undefined;
     }
 
-    // Set up token refresh timer (refresh 5 minutes before expiry)
-    const setupTokenRefresh = () => {
-      // Clear existing timeout
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-      }
+    const expiryMs = readTokenExpiryMs();
+    if (!expiryMs) {
+      return undefined;
+    }
 
-      // JWT tokens typically expire in 1 hour, so refresh after 55 minutes
-      const refreshTime = 55 * 60 * 1000; // 55 minutes in milliseconds
-      
-      refreshTimeoutRef.current = setTimeout(() => {
-        // Attempt to refresh token
-        refreshToken();
-      }, refreshTime);
-    };
+    const delay = Math.max(expiryMs - Date.now() - FIVE_MINUTES, 0);
 
-    const refreshToken = async () => {
-      try {
-        // You can implement token refresh logic here
-        // For now, we'll just logout the user when token expires
-        console.log('Token expired, logging out user');
-        logout();
-      } catch (error) {
-        console.error('Token refresh failed:', error);
-        logout();
-      }
-    };
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
 
-    setupTokenRefresh();
+    refreshTimeoutRef.current = setTimeout(() => {
+      logout();
+    }, delay);
 
-    // Cleanup on unmount
     return () => {
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
@@ -48,16 +47,15 @@ export const useTokenRefresh = () => {
     };
   }, [user, logout]);
 
-  // Function to manually refresh token (can be called from components)
   const manualRefresh = () => {
     if (refreshTimeoutRef.current) {
       clearTimeout(refreshTimeoutRef.current);
     }
-    // Reset the timer
-    const refreshTime = 55 * 60 * 1000;
+    const expiryMs = readTokenExpiryMs();
+    const delay = expiryMs ? Math.max(expiryMs - Date.now() - FIVE_MINUTES, 0) : 0;
     refreshTimeoutRef.current = setTimeout(() => {
       logout();
-    }, refreshTime);
+    }, delay);
   };
 
   return { manualRefresh };

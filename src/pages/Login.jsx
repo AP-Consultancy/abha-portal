@@ -53,12 +53,6 @@ const Login = () => {
     }
   };
 
-  const demoCredentials = [
-    { enrollno: "admin@school.com", password: "admin123", role: "admin" },
-    { enrollno: "U-001", password: "U-001", role: "student" },
-    { enrollno: "TESTEMP003", password: "TESTEMP003", role: "employee" },
-  ];
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl">
@@ -157,25 +151,6 @@ const Login = () => {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
-
-        <div className="mt-6">
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Demo Credentials:
-          </div>
-          <div className="space-y-2">
-            {demoCredentials.map((cred, index) => (
-              <div
-                key={index}
-                className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-2 rounded"
-              >
-                <strong>
-                  {cred.role.charAt(0).toUpperCase() + cred.role.slice(1)}:
-                </strong>{" "}
-                {cred.enrollno} / {cred.password}
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
