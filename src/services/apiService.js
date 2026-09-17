@@ -44,7 +44,7 @@ class ApiService {
           errorData.error ||
           errorData.message ||
           (isLoginRequest
-            ? "Invalid email or password"
+            ? "Invalid username or password"
             : "Authentication expired. Please login again.");
 
         if (!isLoginRequest) {

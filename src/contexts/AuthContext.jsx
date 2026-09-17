@@ -70,8 +70,6 @@ export const AuthProvider = ({ children }) => {
 
     const data = await apiService.post(API_ENDPOINTS.LOGIN, {
       identifier,
-      enrollmentNo: identifier,
-      email: identifier.includes("@") ? identifier : undefined,
       password,
       role,
     });

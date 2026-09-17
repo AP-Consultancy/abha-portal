@@ -9,8 +9,8 @@ import {
 
 const ROLE_FIELDS = {
   admin: {
-    label: "Admin email",
-    placeholder: "Enter admin email",
+    label: "Username",
+    placeholder: "Enter username",
   },
   student: {
     label: "Scholar number",
