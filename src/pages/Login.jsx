@@ -7,15 +7,31 @@ import {
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 
+const ROLE_FIELDS = {
+  admin: {
+    label: "Admin email",
+    placeholder: "Enter admin email",
+  },
+  student: {
+    label: "Scholar number",
+    placeholder: "Enter scholar number",
+  },
+  employee: {
+    label: "Employee ID",
+    placeholder: "Enter employee ID",
+  },
+};
+
 const Login = () => {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("admin");
+  const [role, setRole] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const { login, user } = useAuth();
+  const roleFields = ROLE_FIELDS[role];
 
   if (user) {
     const userRole = user.userRole || (user.student?.user || user.teacher?.user || user.admin?.user || '').toLowerCase();
@@ -36,8 +52,19 @@ const Login = () => {
     }
   }
 
+  const handleRoleChange = (nextRole) => {
+    setRole(nextRole);
+    setIdentifier("");
+    setPassword("");
+    setError("");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!role) {
+      setError("Please select a role to continue.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -63,7 +90,9 @@ const Login = () => {
           <h2 className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">
             Welcome Back
           </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Sign in to your account</p>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Select your role first, then sign in
+          </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -84,9 +113,13 @@ const Login = () => {
               <select
                 id="role"
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => handleRoleChange(e.target.value)}
+                required
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               >
+                <option value="" disabled>
+                  Select role
+                </option>
                 <option value="admin">Admin</option>
                 <option value="student">Student</option>
                 <option value="employee">Employee</option>
@@ -98,7 +131,7 @@ const Login = () => {
                 htmlFor="identifier"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
-                Email / Scholar Number
+                {roleFields?.label || "Login ID"}
               </label>
               <input
                 id="identifier"
@@ -106,7 +139,8 @@ const Login = () => {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Enter email or scholar number"
+                placeholder={roleFields?.placeholder || "Select a role first"}
+                disabled={!role}
                 required
               />
             </div>
@@ -126,6 +160,7 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 dark:bg-gray-700 dark:text-white"
                   placeholder="Enter your password"
+                  disabled={!role}
                   required
                 />
                 <button
@@ -145,7 +180,7 @@ const Login = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !role}
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? "Signing in..." : "Sign in"}
