@@ -6,26 +6,28 @@ class ApiService {
   }
 
   // Get authentication headers
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
+  getAuthHeaders(endpoint = "") {
     const headers = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+
+    const isLoginRequest = String(endpoint).includes("/auth/login");
+    const token = localStorage.getItem("token");
+    if (token && !isLoginRequest) {
+      headers.Authorization = `Bearer ${token}`;
     }
-    
+
     return headers;
   }
 
   // Generic request method
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    const isLoginRequest = String(endpoint).includes("/auth/login");
     const config = {
       ...options,
       headers: {
-        ...this.getAuthHeaders(),
+        ...this.getAuthHeaders(endpoint),
         ...options.headers,
       },
     };
@@ -35,13 +37,25 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      
-      // Handle token expiration
+
       if (response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-        throw new Error('Authentication expired. Please login again.');
+        const errorData = await response.json().catch(() => ({}));
+        const message =
+          errorData.error ||
+          errorData.message ||
+          (isLoginRequest
+            ? "Invalid email or password"
+            : "Authentication expired. Please login again.");
+
+        if (!isLoginRequest) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          if (window.location.pathname !== "/login") {
+            window.location.href = "/login";
+          }
+        }
+
+        throw new Error(message);
       }
 
       if (!response.ok) {

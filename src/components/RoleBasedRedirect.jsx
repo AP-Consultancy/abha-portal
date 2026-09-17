@@ -3,10 +3,18 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const RoleBasedRedirect = () => {
-  const { getUserRole } = useAuth();
+  const { getUserRole, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
   const userRole = getUserRole();
 
-  // Redirect all authenticated users to dashboard (role-aware)
   switch (userRole) {
     case 'admin':
     case 'student':

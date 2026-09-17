@@ -18,10 +18,12 @@ const readTokenExpiryMs = () => {
 
 export const useTokenRefresh = () => {
   const { user, logout } = useAuth();
+  const logoutRef = useRef(logout);
   const refreshTimeoutRef = useRef(null);
+  logoutRef.current = logout;
 
   useEffect(() => {
-    if (!user) {
+    if (!user || window.location.pathname === "/login") {
       return undefined;
     }
 
@@ -37,7 +39,7 @@ export const useTokenRefresh = () => {
     }
 
     refreshTimeoutRef.current = setTimeout(() => {
-      logout();
+      logoutRef.current();
     }, delay);
 
     return () => {
@@ -45,7 +47,7 @@ export const useTokenRefresh = () => {
         clearTimeout(refreshTimeoutRef.current);
       }
     };
-  }, [user, logout]);
+  }, [user]);
 
   const manualRefresh = () => {
     if (refreshTimeoutRef.current) {
@@ -54,7 +56,7 @@ export const useTokenRefresh = () => {
     const expiryMs = readTokenExpiryMs();
     const delay = expiryMs ? Math.max(expiryMs - Date.now() - FIVE_MINUTES, 0) : 0;
     refreshTimeoutRef.current = setTimeout(() => {
-      logout();
+      logoutRef.current();
     }, delay);
   };
 

@@ -30,8 +30,16 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { login, user } = useAuth();
+  const { login, user, loading: restoringSession } = useAuth();
   const roleFields = ROLE_FIELDS[role];
+
+  if (restoringSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
 
   if (user) {
     const userRole = user.userRole || (user.student?.user || user.teacher?.user || user.admin?.user || '').toLowerCase();
@@ -39,16 +47,16 @@ const Login = () => {
     // Redirect based on user role
     switch (userRole) {
       case 'admin':
-        return <Navigate to="/students" />;
+        return <Navigate to="/students" replace />;
       case 'student':
         // Students are redirected to their profile page
-        return <Navigate to="/profile" />;
+        return <Navigate to="/profile" replace />;
       case 'employee':
       case 'teacher':
         // Teachers and employees are redirected to their profile page
-        return <Navigate to="/profile" />;
+        return <Navigate to="/profile" replace />;
       default:
-        return <Navigate to="/students" />;
+        return <Navigate to="/students" replace />;
     }
   }
 
