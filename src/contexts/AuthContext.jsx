@@ -19,20 +19,36 @@ export const useAuth = () => {
   return context;
 };
 
-const isJwtExpired = (token) => {
-  if (!token || token.split(".").length < 2) {
-    return true;
+const readJwtPayload = (token) => {
+  const encodedPayload = token?.split(".")[1];
+  if (!encodedPayload) {
+    return null;
   }
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    if (!payload.exp) {
-      return false;
-    }
-    return payload.exp * 1000 <= Date.now();
+    const base64Payload = encodedPayload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(encodedPayload.length / 4) * 4, "=");
+    return JSON.parse(atob(base64Payload));
   } catch {
-    return true;
+    return null;
   }
 };
+
+const isJwtExpired = (token) => {
+  const payload = readJwtPayload(token);
+  return !payload || !payload.exp || payload.exp * 1000 <= Date.now();
+};
+
+const readTokenExpiryMs = (token) => {
+  const payload = readJwtPayload(token);
+  return payload?.exp ? payload.exp * 1000 : null;
+};
+
+const LOGIN_RETRY_DELAYS = [2000, 5000];
+
+const isTransientLoginError = (error) =>
+  [502, 503, 504].includes(error?.status) || error?.name === "TypeError";
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
@@ -63,16 +79,109 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (identifier, password, role) => {
+  const logout = useCallback(() => {
+    setUser(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    if (window.location.pathname !== "/login") {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!user) {
+      return undefined;
+    }
+
+    let refreshTimeout;
+    let retryTimeout;
+    let active = true;
+    const refreshMargin = 5 * 60 * 1000;
+    const retryDelay = 60 * 1000;
+
+    const scheduleRefresh = () => {
+      const token = localStorage.getItem("token");
+      const expiryMs = readTokenExpiryMs(token);
+
+      if (!expiryMs) {
+        logout();
+        return;
+      }
+
+      const timeUntilRefresh = expiryMs - Date.now() - refreshMargin;
+      if (timeUntilRefresh <= 0) {
+        void refreshToken(expiryMs);
+        return;
+      }
+
+      refreshTimeout = setTimeout(
+        () => void refreshToken(expiryMs),
+        timeUntilRefresh
+      );
+    };
+
+    const refreshToken = async (expiryMs) => {
+      try {
+        const data = await apiService.post(API_ENDPOINTS.REFRESH_TOKEN, {});
+        const token = data.token || data.data?.token;
+        if (!token) {
+          throw new Error("Token refresh response did not include a token");
+        }
+        if (active) {
+          localStorage.setItem("token", token);
+          scheduleRefresh();
+        }
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        if (Date.now() >= expiryMs) {
+          logout();
+          return;
+        }
+        retryTimeout = setTimeout(
+          () => void refreshToken(expiryMs),
+          Math.min(retryDelay, expiryMs - Date.now())
+        );
+        console.error("Session refresh failed; retrying before token expiry.", error);
+      }
+    };
+
+    scheduleRefresh();
+    return () => {
+      active = false;
+      clearTimeout(refreshTimeout);
+      clearTimeout(retryTimeout);
+    };
+  }, [user, logout]);
+
+  const login = async (identifier, password, role, onRetry) => {
     if (!identifier || !password || !role) {
       throw new Error("All fields are required");
     }
 
-    const data = await apiService.post(API_ENDPOINTS.LOGIN, {
-      identifier,
-      password,
-      role,
-    });
+    let data;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        data = await apiService.post(API_ENDPOINTS.LOGIN, {
+          identifier,
+          password,
+          role,
+        });
+        break;
+      } catch (error) {
+        if (
+          !isTransientLoginError(error) ||
+          attempt >= LOGIN_RETRY_DELAYS.length
+        ) {
+          throw error;
+        }
+        onRetry?.();
+        await new Promise((resolve) =>
+          setTimeout(resolve, LOGIN_RETRY_DELAYS[attempt])
+        );
+      }
+    }
 
     if (!data.success) {
       throw new Error(data.message || "Login failed");
@@ -113,15 +222,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(normalizedUser));
     return true;
   };
-
-  const logout = useCallback(() => {
-    setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    if (window.location.pathname !== "/login") {
-      navigate("/login", { replace: true });
-    }
-  }, [navigate]);
 
   const getUserRole = () => {
     if (!user) return null;

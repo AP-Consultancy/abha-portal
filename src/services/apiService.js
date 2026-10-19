@@ -46,6 +46,8 @@ class ApiService {
           (isLoginRequest
             ? "Invalid username or password"
             : "Authentication expired. Please login again.");
+        const error = new Error(message);
+        error.status = response.status;
 
         if (!isLoginRequest) {
           localStorage.removeItem("token");
@@ -55,7 +57,7 @@ class ApiService {
           }
         }
 
-        throw new Error(message);
+        throw error;
       }
 
       if (!response.ok) {
@@ -71,7 +73,9 @@ class ApiService {
             errorData.errors.length > 5 ? ` (+${errorData.errors.length - 5} more)` : "";
           message = `${message} — ${preview}${more}`;
         }
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
       }
 
       return await response.json();

@@ -1,13 +1,9 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useTokenRefresh } from '../hooks/useTokenRefresh';
 
 const ProtectedRoute = ({ children, requiredRoles, allowedRoles }) => {
   const { user, loading, hasRole } = useAuth();
-  
-  // Set up token refresh
-  useTokenRefresh();
 
   if (loading) {
     return (

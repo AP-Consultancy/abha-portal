@@ -29,6 +29,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
 
   const { login, user, loading: restoringSession } = useAuth();
   const roleFields = ROLE_FIELDS[role];
@@ -65,6 +66,7 @@ const Login = () => {
     setIdentifier("");
     setPassword("");
     setError("");
+    setStatus("");
   };
 
   const handleSubmit = async (e) => {
@@ -75,9 +77,12 @@ const Login = () => {
     }
     setLoading(true);
     setError("");
+    setStatus("");
 
     try {
-      const success = await login(identifier, password, role);
+      const success = await login(identifier, password, role, () =>
+        setStatus("The server is starting up. Retrying your sign-in...")
+      );
       if (!success) {
         setError("Invalid credentials. Please try again.");
       }
@@ -85,6 +90,7 @@ const Login = () => {
       setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
+      setStatus("");
     }
   };
 
@@ -107,6 +113,14 @@ const Login = () => {
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
               {error}
+            </div>
+          )}
+          {status && (
+            <div
+              role="status"
+              className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg"
+            >
+              {status}
             </div>
           )}
 

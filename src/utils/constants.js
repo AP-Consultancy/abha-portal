@@ -133,6 +133,7 @@ export const API_ENDPOINTS = {
   DELETE_STUDENT: () => "/api/students/manage",
   // Auth endpoints
   LOGIN: "/api/auth/login",
+  REFRESH_TOKEN: "/api/auth/refresh",
   // Student endpoints
   STUDENT_PROFILE: "/api/students/profile",
   STUDENT_CHANGE_PASSWORD: "/api/students/change-password",
