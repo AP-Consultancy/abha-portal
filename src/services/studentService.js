@@ -11,7 +11,10 @@ const compact = (value) => {
 };
 
 const fullName = (student) =>
-  compact([student.firstName, student.middleName, student.lastName]);
+  [student.firstName, student.middleName, student.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || null;
 
 const toNumberOrNull = (value) => {
   if (value === undefined || value === null || value === "") return null;
@@ -33,9 +36,9 @@ const resolveSectionId = (student = {}, classId) =>
 
 const normalizeGender = (gender) => {
   const value = String(gender || "").trim().toLowerCase();
-  if (value === "male") return "MALE";
-  if (value === "female") return "FEMALE";
-  if (value === "other") return "OTHER";
+  if (value === "male" || value === "m") return "Male";
+  if (value === "female" || value === "f") return "Female";
+  if (value === "other" || value === "o") return "Other";
   return null;
 };
 
@@ -72,7 +75,10 @@ const mapStudentForManage = (student = {}, action, identity = {}) => {
     student_id: toNumberOrNull(identity.studentId || identity.id || student.studentId || student.id),
     user_id: toNumberOrNull(identity.userId || student.userId),
     first_name: student.firstName || null,
-    last_name: compact([student.middleName, student.lastName]) || student.lastName || null,
+    last_name:
+      [student.middleName, student.lastName].filter(Boolean).join(" ").trim() ||
+      student.lastName ||
+      null,
     email: student.email || null,
     phone: student.phone || student.father?.phone || null,
     password: student.password || student.scholarNumber || student.enrollmentNo || "student@123",
@@ -112,11 +118,11 @@ const mapStudentForManage = (student = {}, action, identity = {}) => {
 
 const normalizeStudent = (student = {}) => {
   const nameParts = (student.student_name || "").trim().split(/\s+/).filter(Boolean);
-  const combinedName = compact([
-    student.firstName || student.first_name,
-    student.middleName || student.middle_name,
-    student.lastName || student.last_name,
-  ]);
+  const combinedName =
+    [student.firstName || student.first_name, student.middleName || student.middle_name, student.lastName || student.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim() || null;
 
   // UI expects "Male" / "Female" / "Other" (see BasicInfoForm gender options)
   const normalizeGenderForUI = (g) => {
