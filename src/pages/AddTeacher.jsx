@@ -79,11 +79,13 @@ export default function TeacherRegistrationForm() {
     if (!formData.joiningDate) {
       newErrors.joiningDate = "Joining date is required";
     }
-    if (!formData.className) {
-      newErrors.className = "Class is required";
-    }
-    if (!formData.section) {
-      newErrors.section = "Section is required";
+    const hasClass = Boolean(formData.className);
+    const hasSection = Boolean(formData.section);
+    const hasSubject = Boolean(formData.subjectId);
+    if (hasClass || hasSection || hasSubject) {
+      if (!hasClass) newErrors.className = "Class is required for assignment";
+      if (!hasSection) newErrors.section = "Section is required for assignment";
+      if (!hasSubject) newErrors.subjectId = "Subject is required for assignment";
     }
 
     return newErrors;
