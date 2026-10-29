@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://abha-backend-dily.onrender.com/api/:path*"
+      "destination": "https://abha-backend.vercel.app/api/:path*"
     },
     {
       "source": "/(.*)",
