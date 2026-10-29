@@ -121,7 +121,7 @@ export const INITIAL_FORM_DATA = {
 
 /** Production ABHA API on Vercel */
 const ABHA_API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://abha-backend.vercel.app";
+  import.meta.env.VITE_API_BASE_URL || "https://abha-backend-one.vercel.app";
 
 export const API_BASE_URL = import.meta.env.DEV
   ? import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"
